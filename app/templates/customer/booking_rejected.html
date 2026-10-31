@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{#- Figma: 13-booking-rejected.  Owner: Member 4 -#}
+{% from "_macros.html" import page_head, row %}
+{% set role = "customer" %}{% set active = "My orders" %}
+{% block title %}Booking request{% endblock %}
+{% block content %}
+{{ page_head("Booking request", b.shop_name ~ " · " ~ b.service_name, back=("My orders", url_for('customer.my_orders')), pill_status="Rejected") }}
+<div class="cols">
+  <div class="stack">
+    <section class="card danger">
+      <h2>{{ b.shop_name }} could not accept this booking</h2>
+      <p>Reason: {{ b.reject_reason or "Not given." }}</p>
+      <p class="muted text-14">You can book another shop or another date.</p>
+    </section>
+    <section class="card">
+      <h2>Booking details</h2>
+      {{ row("Shop", b.shop_name) }}
+      {{ row("Service", b.service_name) }}
+      {{ row("Handling", b.handling|handling) }}
+      {{ row("Requested", b.requested_date|short_date ~ " · " ~ b.requested_time) }}
+    </section>
+  </div>
+  <div class="stack">
+    <section class="card gap-12">
+      <h2>What next?</h2>
+      <p class="text-14">Other shops near you:</p>
+      {% for s in others %}
+      <div class="row text-14"><a class="link" href="{{ url_for('customer.shop_details', shop_id=s.id) }}">{{ s.name }}</a>
+        <span style="font-weight:400">Drop-off{{ " · Pickup" if s.offers_pickup }}{{ " · Delivery" if s.offers_delivery }}</span></div>
+      {% endfor %}
+    </section>
+    <a class="btn btn-primary btn-block" href="{{ url_for('customer.shops') }}">Book another shop</a>
+    <a class="btn btn-outline btn-block" href="{{ url_for('customer.my_orders') }}">Back to my orders</a>
+  </div>
+</div>
+{% endblock %}

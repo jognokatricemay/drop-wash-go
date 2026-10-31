@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{#- Figma: 11-my-orders.  Owner: Member 4 -#}
+{% from "_macros.html" import page_head, pill %}
+{% set role = "customer" %}{% set active = "My orders" %}
+{% block title %}My orders{% endblock %}
+{% block content %}
+{% call page_head("My orders", "Booking requests and orders from all shops.") %}
+  <a class="btn btn-primary" href="{{ url_for('customer.shops') }}">Book laundry</a>
+{% endcall %}
+<div class="chips">
+  <a class="chip {{ 'active' if tab != 'past' }}" href="{{ url_for('customer.my_orders') }}">Active</a>
+  <a class="chip {{ 'active' if tab == 'past' }}" href="{{ url_for('customer.my_orders', tab='past') }}">Past</a>
+</div>
+<section class="card">
+  {% if orders %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Order</th><th>Shop</th><th>Handling</th><th>Weight</th><th>Payment</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for b in orders %}
+        {% set url = url_for('customer.order_details', booking_id=b.id) %}
+        <tr data-href="{{ url }}">
+          <td data-label="Order"><a class="id-link" href="{{ url }}">{{ order_label(b) }}</a></td>
+          <td data-label="Shop">{{ b.shop_name }}</td>
+          <td data-label="Handling">{{ b.handling|handling }}</td>
+          <td data-label="Weight">{{ (b.actual_weight|kg ~ " kg") if b.actual_weight else ("Est. " ~ b.est_weight|kg ~ " kg") }}</td>
+          <td data-label="Payment">{% if b.status in ("Pending", "Rejected") %}—{% else %}{{ pill(b.payment_status) }}{% endif %}</td>
+          <td data-label="Status">{{ pill(b.status) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">{{ "No past orders yet." if tab == "past" else "No active orders. Book laundry to get started." }}</p>
+  {% endif %}
+</section>
+<p class="muted small">Unpaid orders are paid directly to the shop: at the counter for drop-off and pickup, or to the rider for delivery.</p>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{#- Figma: 27-staff-profile.  Owner: Member 6 -#}
+{% from "_macros.html" import page_head %}
+{% set role = "staff" %}{% set active = "Profile" %}
+{% block title %}Profile{% endblock %}
+{% block content %}
+{{ page_head("Profile") }}
+<section class="card">
+  <div class="profile-head">
+    <span class="avatar xl">{{ g.shop.name.replace("&", " ").split()[:2]|map("first")|join|upper }}</span>
+    <div><h2>{{ g.shop.name }}</h2><p class="muted">{{ g.user.username }} · Owner: {{ g.shop.owner_name }}</p></div>
+  </div>
+</section>
+<section class="card list">
+  <a class="list-item" href="{{ url_for('staff.shop_info') }}"><span class="li-body"><span class="li-title">Shop info, services &amp; rates</span><span class="li-sub">Hours, handling options, rates, accepted payments</span></span><span class="chev">›</span></a>
+  {# TODO (Member 6): change password page #}
+  <a class="list-item" href="#"><span class="li-body"><span class="li-title">Change password</span></span><span class="chev">›</span></a>
+  <a class="list-item" href="{{ url_for('auth.logout') }}"><span class="li-body"><span class="li-title danger-txt">Log out</span></span></a>
+</section>
+{% endblock %}

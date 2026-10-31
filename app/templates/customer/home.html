@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{#- Figma: 04-customer-home.  Owner: Member 4 -#}
+{% from "_macros.html" import pill, page_head %}
+{% set role = "customer" %}{% set active = "Home" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+{% call page_head("Hi, " ~ g.user.full_name.split()[0], "Track your laundry or book a new one.") %}
+  <a class="btn btn-primary" href="{{ url_for('customer.shops') }}">Find a shop</a>
+{% endcall %}
+
+<section class="overview">
+  {% if active_order %}
+  {% set pct = {"Accepted": 25, "Processing": 50, "Ready for Pickup": 80, "Ready for Delivery": 80}[active_order.status] %}
+  <a class="active-order" href="{{ url_for('customer.order_details', booking_id=active_order.id) }}">
+    <span class="label">Active order</span>
+    <span class="order-id">#{{ active_order.order_code }}</span>
+    <span class="meta">{{ active_order.status }} · {{ active_order.shop_name }}</span>
+    <span class="progress" role="progressbar" aria-valuenow="{{ pct }}" aria-valuemin="0" aria-valuemax="100"><span style="width: {{ pct }}%"></span></span>
+  </a>
+  {% else %}
+  <a class="active-order" href="{{ url_for('customer.shops') }}">
+    <span class="label">No active order</span>
+    <span class="order-id">Book laundry</span>
+    <span class="meta">Find a shop near you and send a booking request.</span>
+  </a>
+  {% endif %}
+  <a class="quick-link" href="{{ url_for('customer.my_orders') }}">
+    <span class="circle">O</span>
+    <div><h3>My orders</h3><span class="muted text-14">{{ n_active }} active {{ "order" if n_active == 1 else "orders" }}</span></div>
+  </a>
+  <a class="quick-link" href="{{ url_for('customer.notifications') }}">
+    <span class="circle">!</span>
+    <div><h3>Notifications</h3><span class="muted text-14">{{ unread }} new {{ "update" if unread == 1 else "updates" }}</span></div>
+  </a>
+</section>
+
+<section class="card">
+  <h2>Recent orders</h2>
+  {% if recent %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Order</th><th>Shop</th><th>Handling</th><th>Date</th><th>Status</th></tr></thead>
+      <tbody>
+      {% for b in recent %}
+        {% set url = url_for('customer.order_details', booking_id=b.id) %}
+        <tr data-href="{{ url }}">
+          <td data-label="Order"><a class="id-link" href="{{ url }}">{{ order_label(b) }}</a></td>
+          <td data-label="Shop">{{ b.shop_name }}</td>
+          <td data-label="Handling">{{ b.handling|handling }}{{ " · " ~ b.actual_weight|kg ~ " kg" if b.actual_weight }}</td>
+          <td data-label="Date">{{ b.requested_date|short_date }}</td>
+          <td data-label="Status">{{ pill(b.status) }}</td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">No orders yet. <a class="link" href="{{ url_for('customer.shops') }}">Find a shop</a> to book your first laundry.</p>
+  {% endif %}
+</section>
+{% endblock %}

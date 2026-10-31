@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{#- Figma: 15-profile.  Owner: Member 4 -#}
+{% from "_macros.html" import page_head %}
+{% set role = "customer" %}{% set active = "Profile" %}
+{% block title %}Profile{% endblock %}
+{% block content %}
+{{ page_head("Profile") }}
+<section class="card">
+  <div class="profile-head">
+    <span class="avatar xl">{{ g.user.full_name.split()[0][0] }}{{ g.user.full_name.split()[-1][0] }}</span>
+    <div><h2>{{ g.user.full_name }}</h2><p class="muted">{{ g.user.mobile }}{{ " · " ~ g.user.email if g.user.email }}</p></div>
+  </div>
+</section>
+<section class="card list">
+  {# TODO (Member 4): make these two open edit pages #}
+  <a class="list-item" href="#"><span class="li-body"><span class="li-title">Personal information</span><span class="li-sub">Name, mobile number, email</span></span><span class="chev">›</span></a>
+  <a class="list-item" href="#"><span class="li-body"><span class="li-title">Saved addresses</span><span class="li-sub">{{ g.user.address or "No saved address yet" }}</span></span><span class="chev">›</span></a>
+  <a class="list-item" href="{{ url_for('auth.logout') }}"><span class="li-body"><span class="li-title danger-txt">Log out</span></span></a>
+</section>
+{% endblock %}

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{#- Figma: 19-staff-booking-requests.  Owner: Member 5 -#}
+{% from "_macros.html" import page_head, pill %}
+{% set role = "staff" %}{% set active = "Booking requests" %}
+{% block title %}Booking requests{% endblock %}
+{% block content %}
+{{ page_head("Booking requests", "Accept or reject new bookings. Order IDs are created on accept.") }}
+<div class="chips">
+  <a class="chip {{ 'active' if tab == 'Pending' }}" href="{{ url_for('staff.requests') }}">Pending ({{ n_pending }})</a>
+  <a class="chip {{ 'active' if tab == 'Accepted' }}" href="{{ url_for('staff.requests', tab='Accepted') }}">Accepted</a>
+  <a class="chip {{ 'active' if tab == 'Rejected' }}" href="{{ url_for('staff.requests', tab='Rejected') }}">Rejected</a>
+</div>
+<section class="card">
+  {% if rows %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Customer</th><th>Service</th><th>Handling</th><th>Requested</th><th>Est. total</th><th>Status</th><th></th></tr></thead>
+      <tbody>
+      {% for b in rows %}
+        {% set url = url_for('staff.booking_details', booking_id=b.id) if b.status == 'Pending' else url_for('staff.order_details', booking_id=b.id) %}
+        {% if b.status == "Rejected" %}{% set url = url_for('staff.booking_details', booking_id=b.id) %}{% endif %}
+        <tr data-href="{{ url }}">
+          <td data-label="Customer"><strong>{{ b.customer_name }}</strong></td>
+          <td data-label="Service">{{ b.service_name }}</td>
+          <td data-label="Handling">{{ b.handling|handling }}</td>
+          <td data-label="Requested">{{ b.requested_date|short_date }} · {{ b.requested_time }}</td>
+          <td data-label="Est. total">{{ booking_price(b).total|peso }}</td>
+          <td data-label="Status">{{ pill(b.status) }}</td>
+          <td class="no-label"><a class="btn btn-secondary btn-sm" href="{{ url }}">{{ "Review" if b.status == "Pending" else "View" }}</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">No {{ tab|lower }} bookings.</p>
+  {% endif %}
+</section>
+{% endblock %}

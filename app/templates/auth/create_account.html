@@ -1,0 +1,28 @@
+{% extends "auth/base_auth.html" %} {# Figma: 02-create-account #} {% from
+"_macros.html" import field %} {% block title %}Create account{% endblock %} {%
+block form %}
+<input type="hidden" name="next" value="{{ next }}" />
+<div class="stack" style="gap: 8px">
+  <a class="back" href="{{ url_for('auth.welcome') }}">Choose role</a>
+  <h1>Create your account</h1>
+  <p class="muted">For customers booking laundry.</p>
+</div>
+{{ field("Full name", "full_name", form.get("full_name", ""), errors=errors,
+placeholder="Juan Dela Cruz") }}
+<div class="grid-2">
+  {{ field("Mobile number", "mobile", form.get("mobile", ""), type="tel",
+  errors=errors, placeholder="09171234567") }} {{ field("Email (optional)",
+  "email", form.get("email", ""), type="email", errors=errors) }}
+</div>
+<div class="grid-2">
+  {{ field("Password", "password", type="password", errors=errors) }} {{
+  field("Confirm password", "confirm_password", type="password", errors=errors)
+  }}
+</div>
+<button class="btn btn-primary btn-block" type="submit">Create account</button>
+<div class="links">
+  <a href="{{ url_for('auth.login', next=next) }}"
+    >Already have an account? Login</a
+  >
+</div>
+{% endblock %}

@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+{#- Figma: 05-shop-list and 05a-shop-list-guest.  Owner: Member 3 -#}
+{% from "_macros.html" import page_head %}
+{% set role = "customer" %}{% set active = "Find a shop" %}
+{% block title %}Find a shop{% endblock %}
+{% block content %}
+{{ page_head("Find a shop", "Laundry shops in Balete") }}
+
+{% if not g.user %}
+<div class="guest-banner">
+  <div><strong>You're browsing as a guest</strong><br><span class="muted small">Log in to book laundry and track your orders.</span></div>
+  <a class="link" href="{{ url_for('auth.login') }}">Log in or create an account</a>
+</div>
+{% endif %}
+
+<div class="toolbar">
+  <input class="search" type="search" placeholder="Search shops" aria-label="Search shops" data-search="#shop-grid">
+  <div class="chips" data-filter="#shop-grid">
+    <button class="chip active" type="button" data-value="all">All shops</button>
+    <button class="chip" type="button" data-value="pickup-delivery">Pickup &amp; Delivery</button>
+    <button class="chip" type="button" data-value="drop-off-only">Drop-off only</button>
+  </div>
+</div>
+<p class="note">Can't go to the shop? Pick a shop that offers Pickup &amp; Delivery. The shop collects your laundry and brings it back, and you pay when it is delivered.</p>
+
+<section class="shop-grid" id="shop-grid">
+  {% for s in shops %}
+  {% set tags = "pickup-delivery" if s.offers_pickup and s.offers_delivery else ("pickup" if s.offers_pickup else "drop-off-only") %}
+  {% set words = s.name.replace("&", " ").split() %}
+  <article class="card shop-card" data-tags="{{ tags }}" data-name="{{ s.name }} {{ s.address }}">
+    <div class="shop-cover">{% for w in words[:3] %}{{ w[0]|upper }}{% endfor %}</div>
+    <h3>{{ s.name }}</h3>
+    <span class="muted text-14">{{ s.address }}</span>
+    <span class="open-time">Open {{ s.opening_hours }}</span>
+    <div class="tags">
+      {% if s.offers_dropoff %}<span class="tag">Drop-off</span>{% endif %}
+      {% if s.offers_pickup %}<span class="tag">Pickup</span>{% else %}<span class="tag muted-tag">No pickup</span>{% endif %}
+      {% if s.offers_delivery %}<span class="tag">Delivery</span>{% endif %}
+    </div>
+    <hr class="divider">
+    <div class="row text-14"><span>From</span><span>{{ s.from_rate|peso if s.from_rate else "—" }} / kg</span></div>
+    <div class="row text-14"><span>Payment</span><span style="font-weight:400">Pay the shop · {{ payment_methods(s) }}</span></div>
+    <a class="btn btn-secondary btn-block" href="{{ url_for('customer.shop_details', shop_id=s.id) }}">View shop</a>
+  </article>
+  {% else %}
+  <p class="muted">No shops yet.</p>
+  {% endfor %}
+</section>
+{% endblock %}

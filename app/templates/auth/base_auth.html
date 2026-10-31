@@ -1,0 +1,79 @@
+{# Split screen used by welcome, login and sign-up pages. Set {% set role =
+"staff" %} for shop pages. #} {% from "_icons.html" import logo %}
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}{% endblock %} · Drop, Wash, Go</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/style.css') }}"
+    />
+    <script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+  </head>
+  <body class="{{ role or 'customer' }}">
+    <div class="auth{{ ' staff' if role == 'staff' }}">
+      <section class="auth-brand">
+        <div class="brand-row">
+          {{ logo() }}
+          <div>
+            <div class="brand-name">Drop, Wash, Go</div>
+            {% if role == "staff" %}
+            <div class="brand-tag">SHOP</div>
+            {% endif %}
+          </div>
+        </div>
+        <div>
+          {% if role == "staff" %}
+          <h1>Run your laundry shop bookings in one place.</h1>
+          <p class="lead">
+            Receive booking requests, confirm weights, and keep customers
+            updated on every order.
+          </p>
+          {% else %}
+          <h1>Laundry, booked in minutes.</h1>
+          <p class="lead">
+            Find a shop near you, book a drop-off, pickup, or delivery, and
+            track your order.
+          </p>
+          {% endif %}
+        </div>
+        <ul>
+          {% if role == "staff" %}
+          <li>✓&nbsp; Accept or reject bookings</li>
+          <li>✓&nbsp; Update order status</li>
+          <li>✓&nbsp; Mark orders as paid</li>
+          {% else %}
+          <li>✓&nbsp; Shops, services and rates</li>
+          <li>✓&nbsp; Drop-off, pickup, or delivery</li>
+          <li>✓&nbsp; Live order status</li>
+          {% endif %}
+        </ul>
+      </section>
+      <main class="auth-form">
+        <form
+          class="form"
+          method="post"
+          {%
+          block
+          form_attrs
+          %}{%
+          endblock
+          %}
+          novalidate
+        >
+          {% with messages = get_flashed_messages() %}{% for m in messages %}
+          <p class="note" role="status">{{ m }}</p>
+          {% endfor %}{% endwith %} {% block form %}{% endblock %}
+        </form>
+      </main>
+    </div>
+  </body>
+</html>

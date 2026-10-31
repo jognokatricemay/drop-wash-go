@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{#- Figma: 26-staff-mark-as-paid.  Owner: Member 6 -#}
+{% from "_macros.html" import page_head, field, radio_row %}
+{% set role = "staff" %}{% set active = "Orders" %}
+{% block title %}Mark as paid{% endblock %}
+{% block content %}
+{{ page_head("Mark as paid", "#" ~ b.order_code ~ " · " ~ b.customer_name, back=("#" ~ b.order_code, url_for('staff.order_details', booking_id=b.id))) }}
+{% set method = form.get("method", "cash") %}
+<form class="stack narrow" id="paid-form" method="post" data-due="{{ price.total }}">
+  <section class="card" style="gap:18px">
+    <div class="amount-box"><span class="muted text-14">Amount due</span><strong>{{ price.total|peso(2) }}</strong></div>
+    <fieldset style="border:0;margin:0;padding:0" class="field">
+      <legend class="field-label" style="margin-bottom:8px">Payment method</legend>
+      <div class="grid-2" style="gap:12px">
+        {{ radio_row("method", "cash", "Cash", "Paid to the rider or at the counter", method == "cash") }}
+        {% if b.accepts_gcash %}{{ radio_row("method", "gcash", "GCash", "Sent to " ~ (b.gcash_number or "the shop"), method == "gcash") }}{% endif %}
+      </div>
+    </fieldset>
+    <div class="grid-2" data-method="cash">
+      {{ field("Amount received", "amount_received", form.get("amount_received", ""), errors=errors, placeholder="e.g. 200", extra='inputmode="decimal"') }}
+      <div class="field"><span class="field-label">Change due</span><output class="readonly-box" id="change">₱0.00</output></div>
+    </div>
+    <div data-method="gcash" hidden>
+      {{ field("GCash reference number", "gcash_reference", form.get("gcash_reference", ""), errors=errors, placeholder="e.g. 1234 567 890123") }}
+    </div>
+    <p class="muted small">Payment is collected by the shop, outside the app. This only records that the order is paid.</p>
+  </section>
+  <button class="btn btn-primary btn-block" type="submit">Mark as paid</button>
+</form>
+{% endblock %}

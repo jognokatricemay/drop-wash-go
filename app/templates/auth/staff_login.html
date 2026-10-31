@@ -1,0 +1,17 @@
+{% extends "auth/base_auth.html" %} {# Figma: 17-staff-shop-login #} {% from
+"_macros.html" import field %} {% set role = "staff" %} {% block title %}Shop
+login{% endblock %} {% block form %}
+<div class="stack" style="gap: 8px">
+  <h1>Shop login</h1>
+  <p class="muted">Login to manage bookings and orders.</p>
+</div>
+{% if errors.login %}
+<p class="note error" role="alert">{{ errors.login }}</p>
+{% endif %} {{ field("Username", "username", form.get("username", ""),
+placeholder="fe.reyes") }} {{ field("Password", "password", type="password") }}
+<button class="btn btn-primary btn-block" type="submit">Login</button>
+<div class="links">
+  <a href="{{ url_for('auth.staff_register') }}">New shop? Register here</a>
+  <a class="plain" href="{{ url_for('auth.login') }}">Customer? Login here</a>
+</div>
+{% endblock %}

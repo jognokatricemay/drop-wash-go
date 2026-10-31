@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{#- Figma: 25-staff-update-status.  Owner: Member 6 -#}
+{% from "_macros.html" import page_head, field, radio_row %}
+{% set role = "staff" %}{% set active = "Orders" %}
+{% block title %}Update status{% endblock %}
+{% block content %}
+{{ page_head("Update status", "#" ~ b.order_code ~ " · " ~ b.customer_name ~ " · " ~ b.handling|handling, back=("#" ~ b.order_code, url_for('staff.order_details', booking_id=b.id))) }}
+{% set delivers = b.handling == "pickup-delivery" %}
+<form class="stack narrow" method="post">
+  <fieldset class="card gap-10" style="margin:0">
+    <legend class="sr-only">Status</legend>
+    <h2>Status</h2>
+    <div class="radio-list">
+      {% for s, sub in statuses %}
+        {% if not (s == "Ready for Delivery" and not delivers) and not (s == "Ready for Pickup" and delivers) %}
+        {{ radio_row("status", s, s, sub, s == b.status) }}
+        {% endif %}
+      {% endfor %}
+    </div>
+  </fieldset>
+  <section class="card gap-10">
+    {{ field(("Delivery" if delivers else "Ready for pickup") ~ " schedule", "delivery_schedule", b.delivery_schedule or "", placeholder="e.g. Oct 22 · 3-6 PM") }}
+    <p class="muted small">The customer sees this schedule and is notified.{% if delivers and b.payment_status != "Paid" %} Remind the rider to collect {{ booking_price(b).total|peso(2) }} ({{ payment_methods(b) }}).{% endif %}</p>
+  </section>
+  <button class="btn btn-primary btn-block" type="submit">Save</button>
+</form>
+{% endblock %}

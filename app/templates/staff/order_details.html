@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{#- Figma: 23-staff-order-details + 24 / 24a / 24b Confirm weight pop-ups.  Owner: Member 6 -#}
+{% from "_macros.html" import page_head, row, pill, input %}
+{% set role = "staff" %}{% set active = "Orders" %}
+{% block title %}#{{ b.order_code }}{% endblock %}
+{% block content %}
+{% set delivers = b.handling == "pickup-delivery" %}
+{{ page_head("#" ~ b.order_code, b.customer_name ~ " · " ~ b.service_name, back=("Orders", url_for('staff.orders')), pill_status=b.status) }}
+<div class="cols">
+  <div class="stack">
+    <section class="card">
+      <h2>Order details</h2>
+      {{ row("Customer", b.customer_name) }}
+      {{ row("Phone", b.customer_mobile or "—") }}
+      {{ row("Handling", b.handling|handling) }}
+      {{ row("Confirmed " ~ ("drop-off" if b.handling == "drop-off" else "pickup"), b.requested_date|short_date ~ " · " ~ (b.confirmed_schedule or b.requested_time)) }}
+      {% if b.delivery_schedule %}{{ row("Ready / delivery schedule", b.delivery_schedule) }}{% endif %}
+      {% if b.address %}{{ row("Address", b.address) }}{% endif %}
+      {% if b.notes %}<div class="notes"><span>Special instructions</span><span>{{ b.notes }}</span></div>{% endif %}
+      {% if price.estimated %}
+        {{ row("Est. total", price.total|peso(2)) }}
+      {% else %}
+        {{ row("Weight", price.weight|kg ~ " " ~ b.unit) }}
+        {{ row("Total", price.total|peso(2)) }}
+      {% endif %}
+    </section>
+    <section class="card gap-12">
+      <div class="card-head"><h2>Payment</h2>{{ pill(b.payment_status) }}</div>
+      {% if b.payment_status == "Paid" %}
+        {{ row("Paid by", "GCash · ref " ~ b.gcash_reference if b.payment_method == "gcash" else "Cash") }}
+      {% else %}
+        {{ row("How the customer pays", ("On delivery" if delivers else "At the counter") ~ " · " ~ payment_methods(b)) }}
+        <p class="muted small">Collect payment {{ "when you deliver" if delivers else "when the customer picks it up" }}, then use Mark as paid.</p>
+      {% endif %}
+    </section>
+  </div>
+  <section class="card" style="gap:14px">
+    <h2>Next step</h2>
+    {% if b.status == "Accepted" and price.estimated %}
+      <p class="note warn">Weigh the laundry at the shop to set the final price.</p>
+      <button class="btn btn-primary btn-block" type="button" id="open-weight">Confirm weight</button>
+    {% elif b.status == "Completed" and b.payment_status == "Paid" %}
+      <p class="note">This order is done.</p>
+    {% else %}
+      <button class="btn btn-outline btn-block" type="button" id="open-weight">{{ "Confirm weight" if price.estimated else "Change weight" }}</button>
+    {% endif %}
+    <a class="btn btn-outline btn-block" href="{{ url_for('staff.update_status', booking_id=b.id) }}">Update status</a>
+    {% if b.payment_status != "Paid" %}<a class="btn btn-outline btn-block" href="{{ url_for('staff.mark_paid', booking_id=b.id) }}">Mark as paid</a>{% endif %}
+  </section>
+</div>
+{% endblock %}
+
+{% block modals %}
+{% set delivers = b.handling == "pickup-delivery" %}
+{% set start = b.actual_weight if b.actual_weight is not none else b.est_weight %}
+<!-- Confirm weight pop-up -->
+<dialog class="modal" id="weight-modal" aria-labelledby="weight-title">
+  <form class="modal-body" id="weight-form" method="post" action="{{ url_for('staff.confirm_weight', booking_id=b.id) }}"
+        data-rate="{{ b.rate }}" data-fee="{{ price.fee }}">
+    <div class="modal-head">
+      <div>
+        <h2 id="weight-title">Confirm weight</h2>
+        <p class="muted text-14">#{{ b.order_code }} · {{ b.customer_name }}</p>
+      </div>
+      <button class="icon-btn" type="button" data-cancel aria-label="Close">×</button>
+    </div>
+    <div class="field">
+      <label for="actual_weight">Actual weight ({{ b.unit }})</label>
+      {{ input("actual_weight", start|kg, "number", extra='min="0.1" step="0.1" required') }}
+      <span class="muted small">Booking estimate: {{ b.est_weight|kg }} {{ b.unit }}</span>
+    </div>
+    <hr class="divider">
+    <div class="row"><span>Laundry ({{ b.rate|peso }} x <span data-w="kg">{{ start|kg }}</span> {{ b.unit }})</span><span data-w="laundry">{{ (b.rate * start)|peso(2) }}</span></div>
+    {% if delivers %}<div class="row"><span>Delivery fee (fixed)</span><span>{{ price.fee|peso }}</span></div>{% endif %}
+    <hr class="divider">
+    <div class="row total"><span>New total</span><span data-w="total">{{ (b.rate * start + price.fee)|peso(2) }}</span></div>
+    <p class="muted small">The customer is notified of the updated total{{ ", which they pay on delivery" if delivers }}.</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" type="button" data-cancel>Cancel</button>
+      <button class="btn btn-primary" type="submit">Save and start processing</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- Asked only when Cancel is clicked after the weight was changed -->
+<dialog class="modal modal-sm" id="discard-modal" aria-labelledby="discard-title">
+  <div class="modal-body">
+    <span class="circle warn">!</span>
+    <h2 id="discard-title">Discard changes?</h2>
+    <p class="text-14">You changed the weight from <strong>{{ start|kg }} {{ b.unit }}</strong> to <strong><span data-w="kg">{{ start|kg }}</span> {{ b.unit }}</strong>. This won't be saved.</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" type="button" id="keep-editing">Keep editing</button>
+      <button class="btn btn-danger" type="button" id="discard-weight">Discard</button>
+    </div>
+  </div>
+</dialog>
+{% endblock %}

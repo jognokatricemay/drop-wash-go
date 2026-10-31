@@ -1,0 +1,60 @@
+{#- Small reusable pieces. Usage: from "_macros.html" import pill, row, field, ...
+    Inputs with checked / selected / disabled are built here, so page templates
+    never need template tags inside an HTML tag. -#}
+
+{% macro pill(status) %}<span class="pill {{ status|pill }}">{{ status }}</span>{% endmacro %}
+
+{% macro row(label, value, cls="") %}<div class="row {{ cls }}"><span>{{ label }}</span><span>{{ value }}</span></div>{% endmacro %}
+
+{%- macro error(errors, name) -%}
+{% if errors and errors.get(name) %}<span class="error-text" id="{{ name }}-err">{{ errors[name] }}</span>{% endif %}
+{%- endmacro -%}
+
+{#- A labelled input. errors is the dict from the route; name is the form field name. -#}
+{% macro field(label, name, value="", type="text", errors={}, placeholder="", extra="") %}
+<div class="field {{ 'has-error' if errors.get(name) }}">
+  <label for="{{ name }}">{{ label|safe }}</label>
+  {{ input(name, value, type, placeholder, errors.get(name), extra) }}
+  {{ error(errors, name) }}
+</div>
+{% endmacro %}
+
+{% macro input(name, value="", type="text", placeholder="", invalid=false, extra="") -%}
+<input class="input" id="{{ name }}" name="{{ name }}" type="{{ type }}" value="{{ value if value is not none }}" placeholder="{{ placeholder }}"{% if invalid %} aria-invalid="true" aria-describedby="{{ name }}-err"{% endif %}{% if extra %} {{ extra|safe }}{% endif %}>
+{%- endmacro %}
+
+{#- options = list of (value, label) or (value, label, extra-attrs) -#}
+{% macro select(label, name, options, selected, errors={}) %}
+<div class="field {{ 'has-error' if errors.get(name) }}">
+  <label for="{{ name }}">{{ label }}</label>
+  <select class="input" id="{{ name }}" name="{{ name }}">
+    {%- for opt in options %}<option value="{{ opt[0] }}"{% if opt[0]|string == selected|string %} selected{% endif %}{% if opt|length > 2 %} {{ opt[2]|safe }}{% endif %}>{{ opt[1] }}</option>{% endfor -%}
+  </select>
+  {{ error(errors, name) }}
+</div>
+{% endmacro %}
+
+{#- Option card used for handling (Drop-off / Pickup / Pickup + Delivery) -#}
+{% macro option_card(name, value, title, sub, checked=false, disabled=false) -%}
+<label class="option"><input type="radio" name="{{ name }}" value="{{ value }}" data-label="{{ title }}"{% if checked %} checked{% endif %}{% if disabled %} disabled{% endif %}><span class="opt-title">{{ title }}</span><span class="opt-sub">{{ sub }}</span></label>
+{%- endmacro %}
+
+{#- Radio row used for status and payment method -#}
+{% macro radio_row(name, value, title, sub="", checked=false) -%}
+<label class="radio-row"><input type="radio" name="{{ name }}" value="{{ value }}"{% if checked %} checked{% endif %}><span class="radio-dot"></span><span style="display:flex;flex-direction:column;gap:2px"><span class="rr-title">{{ title }}</span>{% if sub %}<span class="rr-sub">{{ sub }}</span>{% endif %}</span></label>
+{%- endmacro %}
+
+{% macro toggle(label, name, on) -%}
+<div class="toggle-row"><label for="{{ name }}">{{ label }}</label><span class="switch"><input type="checkbox" id="{{ name }}" name="{{ name }}" value="1"{% if on %} checked{% endif %}><span></span></span></div>
+{%- endmacro %}
+
+{% macro page_head(title, sub="", back=none, pill_status=none) %}
+<div class="page-head">
+  <div class="head-text">
+    {% if back %}<a class="back" href="{{ back[1] }}">{{ back[0] }}</a>{% endif %}
+    <div class="title-row"><h1>{{ title }}</h1>{% if pill_status %}{{ pill(pill_status) }}{% endif %}</div>
+    {% if sub %}<p class="sub">{{ sub }}</p>{% endif %}
+  </div>
+  {{ caller() if caller }}
+</div>
+{% endmacro %}

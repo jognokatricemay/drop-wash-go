@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{#- Figma: 21-staff-booking-accepted.  Owner: Member 5 -#}
+{% set role = "staff" %}{% set active = "Booking requests" %}{% set center = true %}
+{% block title %}Booking accepted{% endblock %}
+{% block center %}
+<section class="card confirm">
+  <span class="circle lg success">✓</span>
+  <h1>Booking accepted</h1>
+  <p class="muted">Order ID generated</p>
+  <div class="order-id-box"><span class="muted text-14">Order ID</span><strong>#{{ b.order_code }}</strong></div>
+  <p class="muted text-14">{{ b.customer_name }} can now see this order in the app.</p>
+  <div class="btn-pair">
+    <a class="btn btn-primary" href="{{ url_for('staff.order_details', booking_id=b.id) }}">View order</a>
+    <a class="btn btn-outline" href="{{ url_for('staff.requests') }}">Back to requests</a>
+  </div>
+</section>
+{% endblock %}
