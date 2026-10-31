@@ -21,11 +21,15 @@ def create_app():
         DB_USER=os.getenv("DB_USER", "root"),
         DB_PASSWORD=os.getenv("DB_PASSWORD", ""),
         DB_NAME=os.getenv("DB_NAME", "dropwashgo"),
+        DB_SSL=os.getenv("DB_SSL", "0") == "1",
+        DB_SSL_CA=os.getenv("DB_SSL_CA", ""),
     )
 
     from . import auth, customer, db, helpers, staff
 
     db.init_app(app)
+    if os.getenv("AUTO_INIT_DB") == "1":
+        db.init_if_empty(app)
     helpers.init_app(app)
     app.register_blueprint(auth.bp)
     app.register_blueprint(customer.bp)
