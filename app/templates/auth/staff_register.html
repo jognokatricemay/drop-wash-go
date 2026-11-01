@@ -14,9 +14,10 @@
 {{ field("Shop address", "address", form.get("address", ""), errors=errors) }}
 {{ field("Owner full name", "owner_name", form.get("owner_name", ""),
 errors=errors) }}
+{{ field("Username", "username", form.get("username", ""), errors=errors) }}
 <div class="grid-2">
-  {{ field("Username", "username", form.get("username", ""), errors=errors) }}
   {{ field("Password", "password", type="password", errors=errors) }}
+  {{ field("Confirm password", "confirm_password", type="password", errors=errors) }}
 </div>
 <p class="muted small">
   You can set services, rates, pickup/delivery, and accepted payments after
