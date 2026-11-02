@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2>Edit Personal Information</h2>
+    <form method="POST">
+        <div class="mb-3">
+            <label for="name" class="form-label">Full Name</label>
+            <input type="text" class="form-control" id="name" name="name" value="{{ form.name or '' }}">
+            {% if errors.name %}
+                <small class="text-danger">{{ errors.name }}</small>
+            {% endif %}
+        </div>
+        
+        <div class="mb-3">
+            <label for="mobile" class="form-label">Mobile Number</label>
+            <input type="text" class="form-control" id="mobile" name="mobile" value="{{ form.mobile or '' }}">
+            {% if errors.mobile %}
+                <small class="text-danger">{{ errors.mobile }}</small>
+            {% endif %}
+        </div>
+
+        <button type="submit" class="btn btn-primary">Save Changes</button>
+        <a href="{{ url_for('customer.profile') }}" class="btn btn-secondary">Cancel</a>
+    </form>
+</div>
+{% endblock %}

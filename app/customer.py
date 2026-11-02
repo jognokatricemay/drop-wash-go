@@ -213,3 +213,29 @@ def open_notification(nid):
 def profile():
     # TODO (Member 4): add pages to edit personal information and saved address
     return render_template("customer/profile.html")
+
+@bp.route("/profile/edit-info", methods=["GET", "POST"])
+@login_required("customer")
+def edit_info():
+    uid = g.user["id"]
+    errors = {}
+
+    if request.method == "POST":
+        name = request.form.get("name", "").strip()
+        mobile = request.form.get("mobile", "").strip()
+
+        if not name:
+            errors["name"] = "Name is required."
+        if not mobile:
+            errors["mobile"] = "Mobile number is required."
+
+        if not errors:
+            execute("UPDATE users SET name=%s, mobile=%s WHERE id=%s", [name,mobile,uid])
+            return redirect(url_for("customer.profile"))
+
+        return render_template("customer/edit_info.html", errors=errors, form={"name": name, "mobile": mobile})
+
+    # GET request: Get current information
+
+    user = query("SELECT name, mobile FROM users WHERE id=%s", [uid], one=True)
+    return render_template("customer/edit_info.html", errors={}, form=user)

@@ -12,9 +12,8 @@
   </div>
 </section>
 <section class="card list">
-  {# TODO (Member 4): make these two open edit pages #}
-  <a class="list-item" href="#"><span class="li-body"><span class="li-title">Personal information</span><span class="li-sub">Name, mobile number, email</span></span><span class="chev">›</span></a>
-  <a class="list-item" href="#"><span class="li-body"><span class="li-title">Saved addresses</span><span class="li-sub">{{ g.user.address or "No saved address yet" }}</span></span><span class="chev">›</span></a>
+  <a class="list-item" href="{{ url_for('customer.edit_info') }}"><span class="li-body"><span class="li-title">Personal information</span><span class="li-sub">Name, mobile number, email</span></span><span class="chev">›</span></a>
+  <a class="list-item" href="{{ url_for('customer.edit_address') }}"><span class="li-body"><span class="li-title">Saved addresses</span><span class="li-sub">{{ g.user.address or "No saved address yet" }}</span></span><span class="chev">›</span></a>
   <a class="list-item" href="{{ url_for('auth.logout') }}"><span class="li-body"><span class="li-title danger-txt">Log out</span></span></a>
 </section>
 {% endblock %}
