@@ -239,3 +239,24 @@ def edit_info():
 
     user = query("SELECT name, mobile FROM users WHERE id=%s", [uid], one=True)
     return render_template("customer/edit_info.html", errors={}, form=user)
+
+@bp.route("/profile/edit-address", methods=["GET", "POST"])
+@login_required("customer")
+def edit_address():
+    uid = g.user["id"]
+    errors = {}
+
+    if request.method == "POST":
+        address = request.form.get("address", "").strip()
+
+        if not address:
+            errors["address"] = "Address is required."
+
+        if not errors:
+            execute("UPDATE users SET address=%s WHERE id=%s", [address, uid])
+            return redirect(url_for("customer.profile"))
+
+        return render_template("customer/edit_address.html", errors=errors, form={"address": address})
+
+    user = query("SELECT address FROM users WHERE id=%s", [uid], one=True)
+    return render_template("customer/edit_address.html", errors={}, form=user)
