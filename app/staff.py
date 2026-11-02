@@ -1,3 +1,4 @@
+from werkzeug.security import check_password_hash, generate_password_hash
 """Shop staff side.  Every route only sees bookings of the logged-in staff's shop (NFR-03, NFR-04).
 Owners:  Member 5 — dashboard, booking requests, accept / reject, Order ID
          Member 6 — orders, confirm weight, update status, mark as paid, shop info, profile
@@ -198,6 +199,16 @@ def shop_info():
     shop = g.shop
     if request.method == "POST":
         f = request.form
+
+        # TASK: Remove service
+        if "delete_service_id" in f:
+            try:
+                execute("DELETE FROM services WHERE id=%s AND shop_id=%s", [f["delete_service_id"], shop["id"]])
+                flash("Service removed.")
+            except Exception:
+                flash("Cannot remove a service that is currently used in bookings.")
+            return redirect(url_for("staff.shop_info"))
+
         try:
             fee = Decimal((f.get("delivery_fee") or "0").replace("₱", "").replace(",", ""))
         except InvalidOperation:
@@ -217,16 +228,53 @@ def shop_info():
                     execute("UPDATE services SET rate=%s WHERE id=%s", [Decimal(rate), svc["id"]])
                 except InvalidOperation:
                     pass
-        # TODO (Member 6): "+ Add service" form (name, rate, unit) -> INSERT INTO services
+
+        # TASK: "+ Add service"
+        new_name = f.get("new_service_name", "").strip()
+        new_rate = f.get("new_service_rate", "").strip()
+        new_unit = f.get("new_service_unit", "kg").strip()
+        if new_name and new_rate:
+            try:
+                rate_val = Decimal(new_rate.replace("₱", "").replace(",", ""))
+                if rate_val > 0 and new_unit in ("kg", "piece"):
+                    execute("INSERT INTO services (shop_id, name, rate, unit) VALUES (%s, %s, %s, %s)",
+                            [shop["id"], new_name, rate_val, new_unit])
+            except InvalidOperation:
+                flash("Invalid rate.")
+
         flash("Changes saved. They apply to new bookings only.")
         nxt = f.get("next", "")
         return redirect(nxt if nxt.startswith("/") and not nxt.startswith("//") else url_for("staff.shop_info"))
+    
     services = query("SELECT * FROM services WHERE shop_id=%s ORDER BY id", [shop["id"]])
     return render_template("staff/shop_info.html", shop=shop, services=services)
 
 
-@bp.route("/profile")
+@bp.route("/profile", methods=["GET", "POST"])
 @login_required("staff")
 def profile():
-    # TODO (Member 6): change password page
-    return render_template("staff/profile.html")
+    errors = {}
+    if request.method == "POST":
+        current_pw = request.form.get("current_password", "")
+        new_pw = request.form.get("new_password", "")
+        confirm_pw = request.form.get("confirm_password", "")
+
+        user = query("SELECT * FROM users WHERE id=%s", [g.user["id"]], one=True)
+        pw_col = "password_hash" if "password_hash" in user else "password"
+        stored_pw = user[pw_col]
+
+        is_valid = check_password_hash(stored_pw, current_pw) if stored_pw.startswith(("scrypt:", "pbkdf2:")) else (stored_pw == current_pw)
+
+        if not is_valid:
+            errors["current_password"] = "Incorrect current password."
+        elif len(new_pw) < 6:
+            errors["new_password"] = "New password must be at least 6 characters."
+        elif new_pw != confirm_pw:
+            errors["confirm_password"] = "New passwords do not match."
+        else:
+            new_hash = generate_password_hash(new_pw)
+            execute(f"UPDATE users SET {pw_col}=%s WHERE id=%s", [new_hash, g.user["id"]])
+            flash("Password updated successfully.")
+            return redirect(url_for("staff.profile"))
+
+    return render_template("staff/profile.html", errors=errors)
