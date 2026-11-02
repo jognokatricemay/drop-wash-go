@@ -11,7 +11,7 @@ HANDLING = {"drop-off": "Drop-off", "pickup": "Pickup", "pickup-delivery": "Pick
 
 PILL = {"Pending": "pending", "Accepted": "accepted", "Processing": "processing",
         "Ready for Pickup": "ready", "Ready for Delivery": "ready", "Completed": "completed",
-        "Rejected": "rejected", "Unpaid": "unpaid", "Paid": "paid"}
+        "Rejected": "rejected","Cancelled":"cancelled", "Unpaid": "unpaid", "Paid": "paid"}
 
 TIME_SLOTS = ["8-10 AM", "9-11 AM", "1-3 PM", "3-6 PM"]
 

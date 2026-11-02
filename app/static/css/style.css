@@ -225,6 +225,7 @@ button.link { background: none; border: 0; padding: 0; cursor: pointer; text-ali
 .pill.processing { background: var(--processing-bg); color: var(--processing-txt); }
 .pill.ready { background: var(--ready-bg); color: var(--ready-txt); }
 .pill.completed { background: var(--completed-bg); color: var(--completed-txt); }
+.pill.cancelled{ background: var(--completed-bg); color: var(--completed-txt);}
 .pill.rejected, .pill.unpaid { background: var(--unpaid-bg); color: var(--unpaid-txt); }
 .pill.paid { background: var(--paid-bg); color: var(--paid-txt); }
 
