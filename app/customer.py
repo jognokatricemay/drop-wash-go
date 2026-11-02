@@ -221,23 +221,23 @@ def edit_info():
     errors = {}
 
     if request.method == "POST":
-        name = request.form.get("name", "").strip()
+        full_name = request.form.get("full_name", "").strip()
         mobile = request.form.get("mobile", "").strip()
 
-        if not name:
-            errors["name"] = "Name is required."
+        if not full_name:
+            errors["full_name"] = "Full name is required."
         if not mobile:
             errors["mobile"] = "Mobile number is required."
 
         if not errors:
-            execute("UPDATE users SET name=%s, mobile=%s WHERE id=%s", [name,mobile,uid])
+            execute("UPDATE users SET name=%s, mobile=%s WHERE id=%s", [full_name,mobile,uid])
             return redirect(url_for("customer.profile"))
 
-        return render_template("customer/edit_info.html", errors=errors, form={"name": name, "mobile": mobile})
+        return render_template("customer/edit_info.html", errors=errors, form={"full_name": full_name, "mobile": mobile})
 
     # GET request: Get current information
 
-    user = query("SELECT name, mobile FROM users WHERE id=%s", [uid], one=True)
+    user = query("SELECT full_name, mobile FROM users WHERE id=%s", [uid], one=True)
     return render_template("customer/edit_info.html", errors={}, form=user)
 
 @bp.route("/profile/edit-address", methods=["GET", "POST"])
@@ -270,3 +270,4 @@ def cancel_booking(booking_id):
         execute("UPDATE bookings SET status='Cancelled' WHERE id=%s AND customer_id=%s", [booking_id, g.user["id"]])
         
     return redirect(url_for("customer.order_details", booking_id=booking_id))
+
