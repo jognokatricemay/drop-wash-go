@@ -260,3 +260,13 @@ def edit_address():
 
     user = query("SELECT address FROM users WHERE id=%s", [uid], one=True)
     return render_template("customer/edit_address.html", errors={}, form=user)
+
+@bp.route("/orders/<int:booking_id>/cancel", methods=["POST"])
+@login_required("customer")
+def cancel_booking(booking_id):
+    b = own_booking(booking_id)
+    
+    if b["status"] == "Pending":
+        execute("UPDATE bookings SET status='Cancelled' WHERE id=%s AND customer_id=%s", [booking_id, g.user["id"]])
+        
+    return redirect(url_for("customer.order_details", booking_id=booking_id))

@@ -47,6 +47,10 @@
       {% endfor %}
     </ol>
     {% if b.status == "Pending" %}<p class="muted small">Your Order ID is created once the shop accepts.</p>{% endif %}
+    <form action="{{ url_for('customer.cancel_booking', booking_id=b.id) }}" method="POST" style="margin-top: 16px;" onsubmit="return confirm('Are you sure you want to cancel this booking?');">
+
+      <button type="submit" class="btn btn-danger w-100">Cancel Booking</button>
+    </form>
   </section>
 </div>
 {% endblock %}
