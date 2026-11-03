@@ -1,19 +1,36 @@
 """Shared helpers: who is logged in, role checks, prices and template filters."""
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from functools import wraps
+from datetime import time
 
 from flask import flash, g, redirect, request, session, url_for
 
 from .db import execute, query
 
+PH = timezone(timedelta(hours=8))  # Philippine time. The server (Render) runs on UTC, so don't use date.today() for bookings.
+
+
+def now_ph():
+    return datetime.now(PH)
+
+
+def today_ph():
+    return now_ph().date()
+
+
 HANDLING = {"drop-off": "Drop-off", "pickup": "Pickup", "pickup-delivery": "Pickup & Delivery"}
 
 PILL = {"Pending": "pending", "Accepted": "accepted", "Processing": "processing",
         "Ready for Pickup": "ready", "Ready for Delivery": "ready", "Completed": "completed",
-        "Rejected": "rejected","Cancelled":"cancelled", "Unpaid": "unpaid", "Paid": "paid"}
+        "Rejected": "rejected", "Cancelled": "cancelled", "Unpaid": "unpaid", "Paid": "paid"}
 
-TIME_SLOTS = ["8-10 AM", "9-11 AM", "1-3 PM", "3-6 PM"]
+TIME_SLOTS = {
+    "9-11 AM":  (time(9, 0),  time(11, 0)),
+    "11-1 PM":  (time(11, 0), time(13, 0)),
+    "1-3 PM":   (time(13, 0), time(15, 0)),
+    "3-5 PM":   (time(15, 0), time(17, 0)),
+}
 
 # A booking with its shop and customer details. Add WHERE / ORDER BY after it.
 BOOKING_SQL = """

@@ -17,6 +17,7 @@
   <input class="search" type="search" placeholder="Search shops" aria-label="Search shops" data-search="#shop-grid">
   <div class="chips" data-filter="#shop-grid">
     <button class="chip active" type="button" data-value="all">All shops</button>
+    <button class="chip" type="button" data-value="pickup">Pickup</button>
     <button class="chip" type="button" data-value="pickup-delivery">Pickup &amp; Delivery</button>
     <button class="chip" type="button" data-value="drop-off-only">Drop-off only</button>
   </div>
@@ -25,7 +26,11 @@
 
 <section class="shop-grid" id="shop-grid">
   {% for s in shops %}
-  {% set tags = "pickup-delivery" if s.offers_pickup and s.offers_delivery else ("pickup" if s.offers_pickup else "drop-off-only") %}
+  {% set tag_list = [] %}
+  {% if s.offers_pickup %}{% set _ = tag_list.append("pickup") %}{% endif %}
+  {% if s.offers_pickup and s.offers_delivery %}{% set _ = tag_list.append("pickup-delivery") %}{% endif %}
+  {% if not s.offers_pickup %}{% set _ = tag_list.append("drop-off-only") %}{% endif %}
+  {% set tags = tag_list|join(" ") %}
   {% set words = s.name.replace("&", " ").split() %}
   <article class="card shop-card" data-tags="{{ tags }}" data-name="{{ s.name }} {{ s.address }}">
     <div class="shop-cover">{% for w in words[:3] %}{{ w[0]|upper }}{% endfor %}</div>
@@ -46,4 +51,5 @@
   <p class="muted">No shops yet.</p>
   {% endfor %}
 </section>
+<p class="muted" id="no-shops" hidden>No shops found. Try a different name or filter.</p>
 {% endblock %}

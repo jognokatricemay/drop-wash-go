@@ -2,13 +2,13 @@
 Owners:  Member 3 — shops, shop details, booking, review, request sent
          Member 4 — home, my orders, order details, notifications, profile
 """
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, time
 from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, abort, g, redirect, render_template, request, session, url_for
 
 from .db import execute, query
-from .helpers import BOOKING_SQL, HANDLING, TIME_SLOTS, booking_price, login_required
+from .helpers import BOOKING_SQL, HANDLING, TIME_SLOTS, booking_price, login_required, now_ph, today_ph
 
 bp = Blueprint("customer", __name__)
 
@@ -48,6 +48,7 @@ def home():
 
 @bp.route("/shops")
 def shops():
+    # Every shop is listed; the search box and filter chips work in the browser (see app.js)
     rows = query("""SELECT s.*, MIN(CASE WHEN v.unit='kg' THEN v.rate END) AS from_rate
                     FROM shops s LEFT JOIN services v ON v.shop_id = s.id
                     GROUP BY s.id ORDER BY s.name""")
@@ -56,15 +57,84 @@ def shops():
 
 @bp.route("/shops/<int:shop_id>")
 def shop_details(shop_id):
+    shop = get_shop(shop_id)
+    if not shop:
+        abort(404)
     return render_template("customer/shop_details.html", shop=get_shop(shop_id))
 
+def offered_for(shop):
+    return [h for h, ok in (("drop-off", shop["offers_dropoff"]), ("pickup", shop["offers_pickup"]),
+                            ("pickup-delivery", shop["offers_pickup"] and shop["offers_delivery"])) if ok]
+def parse_hours(text):
+    """Ginagawang (opens, closes) na time ang '8:00 AM - 8:00 PM'. Ibinabalik ang None kung hindi mabasa."""
+    try:
+        left, right = text.replace("–", "-").split("-")
+        fmt = "%I:%M %p"
+        return (datetime.strptime(left.strip().upper(), fmt).time(),
+                datetime.strptime(right.strip().upper(), fmt).time())
+    except (ValueError, AttributeError):
+        return None
+
+
+def slot_error(shop, when, slot):
+    start, end = TIME_SLOTS[slot]
+    hours = parse_hours(shop["opening_hours"])
+    if hours:   
+        opens, closes = hours
+        if start < opens or end > closes:
+            return (f"This shop is open from {opens:%I:%M %p} until {closes:%I:%M %p}. "
+                    "Please choose a time within these hours.")
+    if when == today_ph() and start <= now_ph().time():
+        return "This time slot has already passed. Please choose a later time or another date."
+    return None
+
+
+def validate_booking(shop, form, offered):
+    errors, weight, when = {}, None, None
+    service = next((s for s in shop["services"] if str(s["id"]) == form.get("service_id")), None)
+    if not service:
+        errors["service_id"] = "Please choose a service."
+
+    handling = form.get("handling")
+    if handling not in offered:
+        errors["handling"] = "This shop doesn't offer the selected option."
+
+    try:
+        weight = Decimal(form.get("est_weight", "").strip())
+        if not weight.is_finite() or weight <= 0:
+            errors["est_weight"] = "Weight must be greater than 0 kg."
+        elif weight > 100:
+            errors["est_weight"] = "We can only accept up to 100 kg per booking."
+    except (InvalidOperation, ValueError):
+        errors["est_weight"] = "Enter the estimated weight as a number (e.g., 3.5)."
+
+    try:
+        when = datetime.strptime(form.get("requested_date", ""), "%Y-%m-%d").date()
+        if when < today_ph():
+            errors["requested_date"] = "Past dates are not allowed. Choose today or a later date."
+    except ValueError:
+        errors["requested_date"] = "Please choose a date."
+
+    slot = form.get("requested_time")
+    if slot not in TIME_SLOTS:
+        errors["requested_time"] = "Please choose a time."
+    elif when and "requested_date" not in errors:
+        msg = slot_error(shop, when, slot)
+        if msg:
+            errors["requested_time"] = msg
+
+    if handling in ("pickup", "pickup-delivery") and not form.get("address", "").strip():
+        errors["address"] = "Enter the address where we should pick up your laundry."
+
+    return errors, service, weight
 
 @bp.route("/shops/<int:shop_id>/book", methods=["GET", "POST"])
 @login_required("customer")
 def book(shop_id):
     shop = get_shop(shop_id)
-    offered = [h for h, ok in (("drop-off", shop["offers_dropoff"]), ("pickup", shop["offers_pickup"]),
-                               ("pickup-delivery", shop["offers_pickup"] and shop["offers_delivery"])) if ok]
+    if not shop:
+        abort(404)
+    offered = offered_for(shop)
     errors = {}
     # Start from the saved draft when coming back from Review ("Edit booking")
     draft = session.get("draft") if session.get("draft", {}).get("shop_id") == shop_id else {}
@@ -79,29 +149,9 @@ def book(shop_id):
     }
 
     if request.method == "POST":
-        service = next((s for s in shop["services"] if str(s["id"]) == form.get("service_id")), None)
-        if not service:
-            errors["service_id"] = "Choose a service."
-        handling = form.get("handling")
-        if handling not in offered:
-            errors["handling"] = "This shop doesn't offer that option."
-        try:
-            weight = Decimal(form.get("est_weight", ""))
-            if weight <= 0 or weight > 100:
-                raise InvalidOperation
-        except (InvalidOperation, ValueError):
-            errors["est_weight"] = "Enter the estimated weight."
-        try:
-            when = datetime.strptime(form.get("requested_date", ""), "%Y-%m-%d").date()
-            if when < date.today():
-                errors["requested_date"] = "Choose today or a later date."
-        except ValueError:
-            errors["requested_date"] = "Choose a date."
-        if form.get("requested_time") not in TIME_SLOTS:
-            errors["requested_time"] = "Choose a time."
-        if handling in ("pickup", "pickup-delivery") and not form.get("address", "").strip():
-            errors["address"] = "Enter the pickup address."
+        errors, service, weight = validate_booking(shop, form, offered)
         if not errors:
+            handling = form.get("handling")
             session["draft"] = {
                 "shop_id": shop_id, "service_id": service["id"], "handling": handling,
                 "est_weight": str(weight), "requested_date": form["requested_date"],
@@ -111,7 +161,8 @@ def book(shop_id):
             }
             return redirect(url_for("customer.review"))
     return render_template("customer/book.html", shop=shop, offered=offered, errors=errors, form=form,
-                           time_slots=TIME_SLOTS, handling_labels=HANDLING)
+                           time_slots=TIME_SLOTS, handling_labels=HANDLING,
+                           today=today_ph().isoformat())
 
 
 def draft_booking():
@@ -120,6 +171,9 @@ def draft_booking():
     if not d:
         return None, None
     shop = get_shop(d["shop_id"])
+    if not shop:                      
+        session.pop("draft", None)    
+        return None, None             
     service = next((s for s in shop["services"] if s["id"] == d["service_id"]), None)
     if not service:
         return None, None
@@ -138,6 +192,11 @@ def review():
     if not shop:
         return redirect(url_for("customer.shops"))
     if request.method == "POST":
+        form_data = {k: str(v) for k, v in session["draft"].items()}
+        errors, _, _ = validate_booking(shop, form_data, offered_for(shop))
+        if errors:
+            flash("May kailangang ayusin sa booking mo. Paki-edit at subukan ulit.", "error")
+            return redirect(url_for("customer.book", shop_id=shop["id"]))
         new_id = execute(
             """INSERT INTO bookings (customer_id, shop_id, service_name, rate, unit, handling, delivery_fee,
                est_weight, requested_date, requested_time, address, notes)

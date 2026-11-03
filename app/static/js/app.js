@@ -12,27 +12,33 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Shop list: filter chips and search (no page reload)
-  document.querySelectorAll(".chips[data-filter]").forEach((group) => {
-    const target = document.querySelector(group.dataset.filter);
-    group.addEventListener("click", (e) => {
-      const chip = e.target.closest(".chip");
-      if (!chip || !target) return;
-      group.querySelectorAll(".chip").forEach((c) => c.classList.toggle("active", c === chip));
-      const want = chip.dataset.value;
-      target.querySelectorAll("[data-tags]").forEach((item) => {
-        const tags = item.dataset.tags.split(" ");
-        item.hidden = !(want === "all" || tags.includes(want));
-      });
-    });
-  });
+  // Shop list: the search box and the filter chips work together (no page reload)
   const search = document.querySelector("[data-search]");
   if (search) {
-    const items = document.querySelectorAll(search.dataset.search + " [data-name]");
-    search.addEventListener("input", () => {
+    const grid = document.querySelector(search.dataset.search);
+    const chips = document.querySelector(".chips[data-filter]");
+    const empty = document.querySelector("#no-shops");
+    let want = "all";
+    const apply = () => {
       const q = search.value.trim().toLowerCase();
-      items.forEach((item) => (item.hidden = !item.dataset.name.toLowerCase().includes(q)));
-    });
+      let shown = 0;
+      grid.querySelectorAll("[data-name]").forEach((item) => {
+        const tagOk = want === "all" || item.dataset.tags.split(" ").includes(want);
+        item.hidden = !(tagOk && item.dataset.name.toLowerCase().includes(q));
+        if (!item.hidden) shown++;
+      });
+      if (empty) empty.hidden = shown > 0;
+    };
+    search.addEventListener("input", apply);
+    if (chips) {
+      chips.addEventListener("click", (e) => {
+        const chip = e.target.closest(".chip");
+        if (!chip) return;
+        chips.querySelectorAll(".chip").forEach((c) => c.classList.toggle("active", c === chip));
+        want = chip.dataset.value;
+        apply();
+      });
+    }
   }
 
   // Welcome page: Continue goes to the sign-up page of the chosen role
