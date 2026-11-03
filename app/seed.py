@@ -52,6 +52,10 @@ def seed():
             ],
         )
 
+        # Demo security question for every account, so "Forgot password?" can be tried
+        cur.execute("UPDATE users SET security_question=%s, security_answer_hash=%s",
+                    ["What is your favorite food?", generate_password_hash("adobo")])
+
         d = lambda days: today + timedelta(days=days)
         # id, code, customer, shop, service, rate, unit, handling, fee, est, actual, date, time,
         # confirmed, delivery, address, notes, status, reason, payment, method

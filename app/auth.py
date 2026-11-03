@@ -13,6 +13,28 @@ EMAIL_RULE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$") #smthing@smthing.somethin
 def valid_mobile(number):
     return number.isdigit() and len(number) == 11 and number.startswith("09")
 
+
+QUESTIONS = [
+    "What is your favorite food?",
+    "What was the name of your first pet?",
+    "What is your mother's maiden name?",
+    "What town were you born in?",
+]
+QUESTION_OPTIONS = [(q, q) for q in QUESTIONS]  # for the <select> in the sign-up forms
+MAX_RESET_TRIES = 5
+
+
+def clean_answer(text):
+    """Ignore capital letters and extra spaces, so "Adobo " matches "adobo"."""
+    return " ".join(text.lower().split())
+
+
+def check_security(form, errors):
+    if form.get("security_question") not in QUESTIONS:
+        errors["security_question"] = "Choose a security question."
+    if len(clean_answer(form.get("security_answer", ""))) < 2:
+        errors["security_answer"] = "Enter your answer (at least 2 characters)."
+
 def home_for(user):
     return url_for("staff.dashboard" if user["role"] == "staff" else "customer.home")
 
@@ -80,13 +102,17 @@ def create_account():
             errors["password"] = "Use at least 8 characters."
         elif password != form.get("confirm_password"):
             errors["confirm_password"] = "Passwords don't match."
+        check_security(form, errors)
         if not errors:
-            uid = execute("INSERT INTO users (role, full_name, mobile, email, password_hash) VALUES ('customer',%s,%s,%s,%s)",
-                          [name, mobile, email, generate_password_hash(password)])
+            uid = execute("""INSERT INTO users (role, full_name, mobile, email, password_hash, security_question, security_answer_hash)
+                             VALUES ('customer',%s,%s,%s,%s,%s,%s)""",
+                          [name, mobile, email, generate_password_hash(password), form["security_question"],
+                           generate_password_hash(clean_answer(form["security_answer"]))])
             session.clear()
             session["user_id"] = uid
             return redirect(safe_next(url_for("customer.home")))
-    return render_template("auth/create_account.html", errors=errors, form=form, next=request.values.get("next", ""))
+    return render_template("auth/create_account.html", errors=errors, form=form, next=request.values.get("next", ""),
+                           question_options=QUESTION_OPTIONS)
 
 
 @bp.route("/shop/login", methods=["GET", "POST"])
@@ -131,15 +157,64 @@ def staff_register():
             errors["password"] = "Use at least 8 characters."
         elif password != form.get("confirm_password"):
             errors["confirm_password"] = "Passwords don't match."
+        check_security(form, errors)
         if not errors:
             shop_id = execute("INSERT INTO shops (name, address, contact_number, owner_name) VALUES (%s,%s,%s,%s)",
                               [form["shop_name"].strip(), form["address"].strip(), contact,
                                form["owner_name"].strip()])
-            execute("INSERT INTO users (role, full_name, username, password_hash, shop_id) VALUES ('staff',%s,%s,%s,%s)",
-                    [form["owner_name"].strip(), username, generate_password_hash(password), shop_id])
+            execute("""INSERT INTO users (role, full_name, username, password_hash, shop_id, security_question, security_answer_hash)
+                       VALUES ('staff',%s,%s,%s,%s,%s,%s)""",
+                    [form["owner_name"].strip(), username, generate_password_hash(password), shop_id,
+                     form["security_question"], generate_password_hash(clean_answer(form["security_answer"]))])
             flash("Shop registered. Log in to set your services, rates and payments.")
             return redirect(url_for("auth.staff_login"))
-    return render_template("auth/staff_register.html", errors=errors, form=form)
+    return render_template("auth/staff_register.html", errors=errors, form=form, question_options=QUESTION_OPTIONS)
+
+
+def forgot_password(role):
+    """Step 1: find the account.  Step 2: answer the security question, then choose a new password."""
+    errors, user = {}, None
+    if request.method == "POST":
+        if "identifier" in request.form:  # ---- step 1
+            ident = request.form["identifier"].replace(" ", "")
+            column = "mobile" if role == "customer" else "username"
+            user = query(f"SELECT * FROM users WHERE role=%s AND {column}=%s", [role, ident], one=True)
+            if not user or not user["security_question"]:
+                user = None
+                errors["identifier"] = "No account found. Check the spelling and try again."
+            else:
+                session["reset_uid"], session["reset_tries"] = user["id"], 0
+        else:  # ---- step 2
+            user = query("SELECT * FROM users WHERE id=%s AND role=%s", [session.get("reset_uid"), role], one=True)
+            if not user:
+                return redirect(request.path)
+            password = request.form.get("new_password", "")
+            if session.get("reset_tries", 0) >= MAX_RESET_TRIES:
+                session.pop("reset_uid", None)
+                user, errors["identifier"] = None, "Too many wrong answers. Start again."
+            elif not check_password_hash(user["security_answer_hash"], clean_answer(request.form.get("answer", ""))):
+                session["reset_tries"] = session.get("reset_tries", 0) + 1
+                errors["answer"] = "That answer doesn't match."
+            elif len(password) < 8:
+                errors["new_password"] = "Use at least 8 characters."
+            elif password != request.form.get("confirm_password"):
+                errors["confirm_password"] = "Passwords don't match."
+            else:
+                execute("UPDATE users SET password_hash=%s WHERE id=%s", [generate_password_hash(password), user["id"]])
+                session.pop("reset_uid", None)
+                flash("Password changed. You can log in now.")
+                return redirect(url_for("auth.login" if role == "customer" else "auth.staff_login"))
+    return render_template("auth/forgot_password.html", role=role, user=user, errors=errors, form=request.form)
+
+
+@bp.route("/forgot-password", methods=["GET", "POST"])
+def forgot_customer():
+    return forgot_password("customer")
+
+
+@bp.route("/shop/forgot-password", methods=["GET", "POST"])
+def forgot_staff():
+    return forgot_password("staff")
 
 
 @bp.route("/logout")

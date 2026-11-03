@@ -38,6 +38,8 @@ CREATE TABLE users (
   username       VARCHAR(60),
   password_hash  VARCHAR(255) NOT NULL,
   address        VARCHAR(200),
+  security_question    VARCHAR(120) NULL,   -- for the "Forgot password?" page
+  security_answer_hash VARCHAR(255) NULL,   -- the answer is hashed, like a password
   shop_id        INT NULL,
   created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_mobile (mobile),

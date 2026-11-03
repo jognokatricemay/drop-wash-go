@@ -1,5 +1,5 @@
 {% extends "auth/base_auth.html" %} {# Figma: 16-staff-register-shop #} {% from
-"_macros.html" import field %} {% set role = "staff" %} {% block title
+"_macros.html" import field, select %} {% set role = "staff" %} {% block title
 %}Register your shop{% endblock %} {% block form %}
 <div class="stack" style="gap: 8px">
   <a class="back" href="{{ url_for('auth.welcome') }}">Choose role</a>
@@ -19,6 +19,8 @@ errors=errors) }}
   {{ field("Password", "password", type="password", errors=errors) }}
   {{ field("Confirm password", "confirm_password", type="password", errors=errors) }}
 </div>
+{{ select("Security question (for forgot password)", "security_question", question_options, form.get("security_question"), errors) }}
+{{ field("Your answer", "security_answer", form.get("security_answer", ""), errors=errors) }}
 <p class="muted small">
   You can set services, rates, pickup/delivery, and accepted payments after
   login.
