@@ -230,7 +230,7 @@ def edit_info():
             errors["mobile"] = "Mobile number is required."
 
         if not errors:
-            execute("UPDATE users SET name=%s, mobile=%s WHERE id=%s", [full_name,mobile,uid])
+            execute("UPDATE users SET full_name=%s, mobile=%s WHERE id=%s", [full_name,mobile,uid])
             return redirect(url_for("customer.profile"))
 
         return render_template("customer/edit_info.html", errors=errors, form={"full_name": full_name, "mobile": mobile})

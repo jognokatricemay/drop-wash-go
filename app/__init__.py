@@ -8,7 +8,7 @@ Blueprints (one file per part of the app, so team members don't edit the same fi
 import os
 
 from dotenv import load_dotenv
-from flask import Flask, g
+from flask import Flask     
 
 
 def create_app():
@@ -31,20 +31,6 @@ def create_app():
     if os.getenv("AUTO_INIT_DB") == "1":
         db.init_if_empty(app)
     helpers.init_app(app)
-
-    @app.before_request
-    def load_unread_count():
-        if g.get("user"):
-            res = db.query(
-                "SELECT COUNT(*) AS unread_count FROM notifications WHERE user_id = %s AND is_read = 0",
-                [g.user["id"]],
-                one=True,
-            
-            )
-
-            g.unread_count = res["unread_count"] if res else 0
-        else: 
-            g.unread_count = 0
     
     app.register_blueprint(auth.bp)
     app.register_blueprint(customer.bp)
