@@ -1,5 +1,5 @@
 """Shared helpers: who is logged in, role checks, prices and template filters."""
-from datetime import date
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from functools import wraps
 from datetime import time
@@ -7,6 +7,17 @@ from datetime import time
 from flask import flash, g, redirect, request, session, url_for
 
 from .db import execute, query
+
+PH = timezone(timedelta(hours=8))  # Philippine time. The server (Render) runs on UTC, so don't use date.today() for bookings.
+
+
+def now_ph():
+    return datetime.now(PH)
+
+
+def today_ph():
+    return now_ph().date()
+
 
 HANDLING = {"drop-off": "Drop-off", "pickup": "Pickup", "pickup-delivery": "Pickup & Delivery"}
 

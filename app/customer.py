@@ -8,7 +8,7 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, abort, g, redirect, render_template, request, session, url_for
 
 from .db import execute, query
-from .helpers import BOOKING_SQL, HANDLING, TIME_SLOTS, booking_price, login_required
+from .helpers import BOOKING_SQL, HANDLING, TIME_SLOTS, booking_price, login_required, now_ph, today_ph
 
 bp = Blueprint("customer", __name__)
 
@@ -48,39 +48,11 @@ def home():
 
 @bp.route("/shops")
 def shops():
-    q = request.args.get("q", "").strip()
-    handling = request.args.get("handling", "")
-    max_rate = request.args.get("max_rate", type=float)
-    page = max(request.args.get("page", 1, type=int), 1)
-    per_page = 12
-
-    where, params = [], []
-    if q:
-        like = f"%{q}%"
-        where.append("(s.name LIKE %s OR s.address LIKE %s)")   
-        params += [like, like]
-    if handling == "drop-off":
-        where.append("s.offers_dropoff = 1")
-    elif handling == "pickup":
-        where.append("s.offers_pickup = 1")
-    elif handling == "pickup-delivery":
-        where.append("s.offers_pickup = 1 AND s.offers_delivery = 1")
-
-    having, hparams = "", []
-    if max_rate is not None:
-        having = "HAVING from_rate IS NOT NULL AND from_rate <= %s"
-        hparams.append(max_rate)
-
-    sql = f"""SELECT s.*, MIN(CASE WHEN v.unit='kg' THEN v.rate END) AS from_rate
-              FROM shops s LEFT JOIN services v ON v.shop_id = s.id
-              {"WHERE " + " AND ".join(where) if where else ""}
-              GROUP BY s.id {having}
-              ORDER BY s.name LIMIT %s OFFSET %s"""
-    rows = query(sql, params + hparams + [per_page + 1, (page - 1) * per_page])
-    has_next = len(rows) > per_page          
-    return render_template("customer/shops.html", shops=rows[:per_page],
-                           q=q, handling=handling, max_rate=max_rate,
-                           page=page, has_next=has_next)
+    # Every shop is listed; the search box and filter chips work in the browser (see app.js)
+    rows = query("""SELECT s.*, MIN(CASE WHEN v.unit='kg' THEN v.rate END) AS from_rate
+                    FROM shops s LEFT JOIN services v ON v.shop_id = s.id
+                    GROUP BY s.id ORDER BY s.name""")
+    return render_template("customer/shops.html", shops=rows)
 
 
 @bp.route("/shops/<int:shop_id>")
@@ -112,7 +84,7 @@ def slot_error(shop, when, slot):
         if start < opens or end > closes:
             return (f"This shop is open from {opens:%I:%M %p} until {closes:%I:%M %p}. "
                     "Please choose a time within these hours.")
-    if when == date.today() and start <= datetime.now().time():
+    if when == today_ph() and start <= now_ph().time():
         return "This time slot has already passed. Please choose a later time or another date."
     return None
 
@@ -138,7 +110,7 @@ def validate_booking(shop, form, offered):
 
     try:
         when = datetime.strptime(form.get("requested_date", ""), "%Y-%m-%d").date()
-        if when < date.today():
+        if when < today_ph():
             errors["requested_date"] = "Past dates are not allowed. Choose today or a later date."
     except ValueError:
         errors["requested_date"] = "Please choose a date."
@@ -190,7 +162,7 @@ def book(shop_id):
             return redirect(url_for("customer.review"))
     return render_template("customer/book.html", shop=shop, offered=offered, errors=errors, form=form,
                            time_slots=TIME_SLOTS, handling_labels=HANDLING,
-                           today=date.today().isoformat())
+                           today=today_ph().isoformat())
 
 
 def draft_booking():
