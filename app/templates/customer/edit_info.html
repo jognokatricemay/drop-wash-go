@@ -1,27 +1,61 @@
 {% extends "base.html" %}
+{% from "_macros.html" import field, page_head %}
+
+{% set role = "customer" %}
+{% set active = "Profile" %}
+
+{% block title %}Edit Personal Information{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2>Edit Personal Information</h2>
-    <form method="POST">
-        <div class="mb-3">
-            <label for="full_name" class="form-label">Full Name</label>
-            <input type="text" class="form-control" id="full_name" name="full_name" value="{{ form.full_name or '' }}">
-            {% if errors.full_name %}
-                <small class="text-danger">{{ errors.full_name }}</small>
-            {% endif %}
-        </div>
-        
-        <div class="mb-3">
-            <label for="mobile" class="form-label">Mobile Number</label>
-            <input type="text" class="form-control" id="mobile" name="mobile" value="{{ form.mobile or '' }}">
-            {% if errors.mobile %}
-                <small class="text-danger">{{ errors.mobile }}</small>
-            {% endif %}
-        </div>
+{{ page_head("Edit personal information", back=("Back to Profile", url_for('customer.profile')), sub="Update your profile details below.") }}
 
-        <button type="submit" class="btn btn-primary">Save Changes</button>
-        <a href="{{ url_for('customer.profile') }}" class="btn btn-secondary">Cancel</a>
-    </form>
-</div>
+<form method="POST" id="edit-info-form">
+  {{ field("Full name", "full_name", form.get("full_name", "") if form.get is defined else (form.full_name or ""), errors=errors, placeholder="Juan Dela Cruz") }}
+  
+  <div class="grid-2">
+    {{ field("Mobile number", "mobile", form.get("mobile", "") if form.get is defined else (form.mobile or ""), type="tel", errors=errors, placeholder="09171234567") }}
+    {{ field("Email (optional)", "email", form.get("email", "") if form.get is defined else (form.email or ""), type="email", errors=errors, placeholder="name@example.com") }}
+  </div>
+
+  <div style="margin-top: 24px; display: flex; gap: 12px;">
+    <button class="btn btn-primary btn-block" type="submit" id="save-btn" disabled style="opacity: 0.6; cursor: not-allowed;">Save Changes</button>
+    <a href="{{ url_for('customer.profile') }}" class="btn btn-secondary btn-block">Cancel</a>
+  </div>
+</form>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const fields = document.querySelectorAll("input[name='full_name'], input[name='mobile'], input[name='email']");
+    const saveButton = document.getElementById("save-btn");
+
+    const originalValues = {};
+    fields.forEach(field => {
+      originalValues[field.name] = field.value.trim();
+    });
+
+    function checkChanges() {
+      let hasChanges = false;
+      fields.forEach(field => {
+        if (field.value.trim() !== originalValues[field.name]) {
+          hasChanges = true;
+        }
+      });
+
+      if (hasChanges) {
+        saveButton.removeAttribute("disabled");
+        saveButton.style.opacity = "1";
+        saveButton.style.cursor = "pointer";
+      } else {
+        saveButton.setAttribute("disabled", "disabled");
+        saveButton.style.opacity = "0.6";
+        saveButton.style.cursor = "not-allowed";
+      }
+    }
+
+    fields.forEach(field => {
+      field.addEventListener("input", checkChanges);
+      field.addEventListener("change", checkChanges);
+    });
+  });
+</script>
 {% endblock %}

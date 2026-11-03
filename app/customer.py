@@ -4,6 +4,7 @@ Owners:  Member 3 — shops, shop details, booking, review, request sent
 """
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
+import email
 
 from flask import Blueprint, abort, g, redirect, render_template, request, session, url_for
 
@@ -231,10 +232,23 @@ def edit_address():
             execute("UPDATE users SET address=%s WHERE id=%s", [address, uid])
             return redirect(url_for("customer.profile"))
 
-        return render_template("customer/edit_address.html", errors=errors, form={"address": address})
+        return render_template(
+            "customer/edit_address.html", 
+            errors=errors, 
+            form={"address": address}, 
+            active="profile", 
+            active_page="profile"
+        )
 
+    # GET Request
     user = query("SELECT address FROM users WHERE id=%s", [uid], one=True)
-    return render_template("customer/edit_address.html", errors={}, form=user)
+    return render_template(
+        "customer/edit_address.html", 
+        errors={}, 
+        form=user, 
+        active="profile", 
+        active_page="profile"
+    )
 
 @bp.route("/orders/<int:booking_id>/cancel", methods=["POST"])
 @login_required("customer")
@@ -246,8 +260,6 @@ def cancel_booking(booking_id):
         
     return redirect(url_for("customer.order_details", booking_id=booking_id))
 
-import re
-
 @bp.route("/profile/edit-info", methods=["GET", "POST"])
 @login_required("customer")
 def edit_info():
@@ -257,31 +269,49 @@ def edit_info():
     if request.method == "POST":
         full_name = request.form.get("full_name", "").strip()
         mobile = request.form.get("mobile", "").strip()
-        emaail = request.form.get("email", "").strip()
+        email = request.form.get("email", "").strip()
 
-        # Validate full name
         if not full_name:
             errors["full_name"] = "Full name is required."
-        
-        # Validate mobile number
+
         if not mobile:
             errors["mobile"] = "Mobile number is required."
-        elif not re.match(r"^09\d{9}$", mobile):
-            errors["mobile"] = "Mobile number must be 11 digits starting with '09'."
-
+        elif len(mobile) != 11 or not mobile.startswith("09") or not mobile.isdigit():
+            errors["mobile"] = "Mobile number must be 11 digits starting with 09."
         else:
-            # Check if the mobile number is already used by another user
-            existing_mobile = query("SELECT id FROM users WHERE mobile=%s AND id!=%s", [mobile, uid], one=True)
+            existing_mobile = query("SELECT id FROM users WHERE mobile=%s AND id<>%s", [mobile, uid], one=True)
             if existing_mobile:
-                errors["mobile"] = "This mobile number is already in use."
+                errors["mobile"] = "Mobile number is already in use by another account."
+
+        if email:
+            if "@" not in email or "." not in email:
+                errors["email"] = "Invalid email address format."
+            else:
+                existing_email = query("SELECT id FROM users WHERE email=%s AND id<>%s", [email, uid], one=True)
+                if existing_email:
+                    errors["email"] = "Email address is already in use by another account."
 
         if not errors:
-            execute("UPDATE users SET full_name=%s, mobile=%s WHERE id=%s", [full_name, mobile, uid])
+            execute(
+                "UPDATE users SET full_name=%s, mobile=%s, email=%s WHERE id=%s",
+                [full_name, mobile, email if email else None, uid]
+            )
             return redirect(url_for("customer.profile"))
 
-        return render_template("customer/edit_info.html", errors=errors, form={"full_name": full_name, "mobile": mobile})
+        return render_template(
+            "customer/edit_info.html", 
+            errors=errors, 
+            form={"full_name": full_name, "mobile": mobile, "email": email}, 
+            active="profile", 
+            active_page="profile"
+        )
 
-    # GET request: Get current information
-    user = query("SELECT full_name, mobile FROM users WHERE id=%s", [uid], one=True)
-    return render_template("customer/edit_info.html", errors={}, form=user)
-
+    # GET Request
+    user = query("SELECT full_name, mobile, email FROM users WHERE id=%s", [uid], one=True)
+    return render_template(
+        "customer/edit_info.html", 
+        errors={}, 
+        form=user, 
+        active="profile", 
+        active_page="profile"
+    )

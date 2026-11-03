@@ -1,19 +1,48 @@
 {% extends "base.html" %}
+{% from "_macros.html" import field, page_head %}
+
+{% set role = "customer" %}
+{% set active = "Profile" %}
+
+{% block title %}Edit Saved Address{% endblock %}
 
 {% block content %}
-<div class="container mt-4">
-    <h2>Edit Saved Address</h2>
-    <form method="POST">
-        <div class="mb-3">
-            <label for="address" class="form-label">Delivery / Pickup Address</label>
-            <textarea class="form-control" id="address" name="address" rows="3">{{ form.address or '' }}</textarea>
-            {% if errors.address %}
-                <small class="text-danger">{{ errors.address }}</small>
-            {% endif %}
-        </div>
+{{ page_head("Edit saved address", back=("Back to Profile", url_for('customer.profile')), sub="Update your delivery and pickup address below.") }}
 
-        <button type="submit" class="btn btn-primary">Save Address</button>
-        <a href="{{ url_for('customer.profile') }}" class="btn btn-secondary">Cancel</a>
-    </form>
-</div>
+<form method="POST" id="edit-address-form">
+  {{ field("Delivery / Pickup Address", "address", form.get("address", "") if form.get is defined else (form.address or ""), errors=errors, placeholder="Enter your full address") }}
+
+  <div style="margin-top: 24px; display: flex; gap: 12px;">
+    <button class="btn btn-primary btn-block" type="submit" id="save-btn" disabled style="opacity: 0.6; cursor: not-allowed;">Save Address</button>
+    <a href="{{ url_for('customer.profile') }}" class="btn btn-secondary btn-block">Cancel</a>
+  </div>
+</form>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const addressField = document.querySelector("textarea[name='address'], input[name='address']");
+    const saveButton = document.getElementById("save-btn");
+
+    if (addressField && saveButton) {
+      const originalValue = addressField.value.trim();
+
+      function checkChanges() {
+        const hasChanges = addressField.value.trim() !== originalValue;
+
+        if (hasChanges) {
+          saveButton.removeAttribute("disabled");
+          saveButton.style.opacity = "1";
+          saveButton.style.cursor = "pointer";
+        } else {
+          saveButton.setAttribute("disabled", "disabled");
+          saveButton.style.opacity = "0.6";
+          saveButton.style.cursor = "not-allowed";
+        }
+      }
+
+      addressField.addEventListener("input", checkChanges);
+      addressField.addEventListener("change", checkChanges);
+    }
+  });
+</script>
 {% endblock %}
