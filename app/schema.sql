@@ -76,7 +76,7 @@ CREATE TABLE bookings (
   delivery_schedule   VARCHAR(60) NULL,
   address             VARCHAR(200) NULL,
   notes               VARCHAR(255) NULL,
-  status              ENUM('Pending','Accepted','Processing','Ready for Pickup','Ready for Delivery','Completed','Rejected')
+  status              ENUM('Pending','Accepted','Processing','Ready for Pickup','Ready for Delivery','Completed','Rejected', 'Cancelled')
                       NOT NULL DEFAULT 'Pending',
   reject_reason       VARCHAR(200) NULL,
   payment_status      ENUM('Unpaid','Paid') NOT NULL DEFAULT 'Unpaid',
