@@ -214,31 +214,6 @@ def profile():
     # TODO (Member 4): add pages to edit personal information and saved address
     return render_template("customer/profile.html")
 
-@bp.route("/profile/edit-info", methods=["GET", "POST"])
-@login_required("customer")
-def edit_info():
-    uid = g.user["id"]
-    errors = {}
-
-    if request.method == "POST":
-        full_name = request.form.get("full_name", "").strip()
-        mobile = request.form.get("mobile", "").strip()
-
-        if not full_name:
-            errors["full_name"] = "Full name is required."
-        if not mobile:
-            errors["mobile"] = "Mobile number is required."
-
-        if not errors:
-            execute("UPDATE users SET full_name=%s, mobile=%s WHERE id=%s", [full_name,mobile,uid])
-            return redirect(url_for("customer.profile"))
-
-        return render_template("customer/edit_info.html", errors=errors, form={"full_name": full_name, "mobile": mobile})
-
-    # GET request: Get current information
-
-    user = query("SELECT full_name, mobile FROM users WHERE id=%s", [uid], one=True)
-    return render_template("customer/edit_info.html", errors={}, form=user)
 
 @bp.route("/profile/edit-address", methods=["GET", "POST"])
 @login_required("customer")
@@ -270,4 +245,43 @@ def cancel_booking(booking_id):
         execute("UPDATE bookings SET status='Cancelled' WHERE id=%s AND customer_id=%s", [booking_id, g.user["id"]])
         
     return redirect(url_for("customer.order_details", booking_id=booking_id))
+
+import re
+
+@bp.route("/profile/edit-info", methods=["GET", "POST"])
+@login_required("customer")
+def edit_info():
+    uid = g.user["id"]
+    errors = {}
+
+    if request.method == "POST":
+        full_name = request.form.get("full_name", "").strip()
+        mobile = request.form.get("mobile", "").strip()
+        emaail = request.form.get("email", "").strip()
+
+        # Validate full name
+        if not full_name:
+            errors["full_name"] = "Full name is required."
+        
+        # Validate mobile number
+        if not mobile:
+            errors["mobile"] = "Mobile number is required."
+        elif not re.match(r"^09\d{9}$", mobile):
+            errors["mobile"] = "Mobile number must be 11 digits starting with '09'."
+
+        else:
+            # Check if the mobile number is already used by another user
+            existing_mobile = query("SELECT id FROM users WHERE mobile=%s AND id!=%s", [mobile, uid], one=True)
+            if existing_mobile:
+                errors["mobile"] = "This mobile number is already in use."
+
+        if not errors:
+            execute("UPDATE users SET full_name=%s, mobile=%s WHERE id=%s", [full_name, mobile, uid])
+            return redirect(url_for("customer.profile"))
+
+        return render_template("customer/edit_info.html", errors=errors, form={"full_name": full_name, "mobile": mobile})
+
+    # GET request: Get current information
+    user = query("SELECT full_name, mobile FROM users WHERE id=%s", [uid], one=True)
+    return render_template("customer/edit_info.html", errors={}, form=user)
 
