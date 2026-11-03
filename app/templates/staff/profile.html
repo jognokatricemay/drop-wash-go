@@ -11,34 +11,47 @@
     <div><h2>{{ g.shop.name }}</h2><p class="muted">{{ g.user.username }} · Owner: {{ g.shop.owner_name }}</p></div>
   </div>
 </section>
+
 <section class="card list">
-  <a class="list-item" href="{{ url_for('staff.shop_info') }}"><span class="li-body"><span class="li-title">Shop info, services &amp; rates</span><span class="li-sub">Hours, handling options, rates, accepted payments</span></span><span class="chev">›</span></a>
-  <a class="list-item" href="{{ url_for('auth.logout') }}"><span class="li-body"><span class="li-title danger-txt">Log out</span></span></a>
+  <a class="list-item" href="{{ url_for('staff.shop_info') }}">
+    <span class="li-body">
+      <span class="li-title">Shop info, services & rates</span>
+      <span class="li-sub">Hours, handling options, rates, accepted payments</span>
+    </span>
+    <span class="chev">›</span>
+  </a>
+  <a class="list-item" href="{{ url_for('auth.logout') }}">
+    <span class="li-body">
+      <span class="li-title danger-txt">Log out</span>
+    </span>
+  </a>
+</section> <!-- Ito yung nawawalang closing tag -->
+
 <section class="card gap-10" style="margin-top: 20px;">
   <h2>Change Password</h2>
   <form method="POST" action="{{ url_for('staff.profile') }}" class="stack" style="gap:12px; max-width: 400px;">
     
     <div>
       <label>Current Password</label>
-      <input class="input" type="password" name="current_password" required>
+      <input class="input {% if errors and errors.current_password %}invalid{% endif %}" type="password" name="current_password" required>
       {% if errors and errors.current_password %}
-        <small style="color:var(--danger);">{{ errors.current_password }}</small>
+        <div style="color:var(--danger); font-size: 13px; margin-top: 4px;">{{ errors.current_password }}</div>
       {% endif %}
     </div>
 
     <div>
       <label>New Password</label>
-      <input class="input" type="password" name="new_password" required minlength="6">
+      <input class="input {% if errors and errors.new_password %}invalid{% endif %}" type="password" name="new_password" required minlength="6">
       {% if errors and errors.new_password %}
-        <small style="color:var(--danger);">{{ errors.new_password }}</small>
+        <div style="color:var(--danger); font-size: 13px; margin-top: 4px;">{{ errors.new_password }}</div>
       {% endif %}
     </div>
 
     <div>
       <label>Confirm New Password</label>
-      <input class="input" type="password" name="confirm_password" required minlength="6">
+      <input class="input {% if errors and errors.confirm_password %}invalid{% endif %}" type="password" name="confirm_password" required minlength="6">
       {% if errors and errors.confirm_password %}
-        <small style="color:var(--danger);">{{ errors.confirm_password }}</small>
+        <div style="color:var(--danger); font-size: 13px; margin-top: 4px;">{{ errors.confirm_password }}</div>
       {% endif %}
     </div>
 

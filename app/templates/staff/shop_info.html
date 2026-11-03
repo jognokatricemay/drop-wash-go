@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{#- Figma: 28 / 28a / 28b staff shop info (Save disabled until changed, unsaved-changes pop-up).  Owner: Member 6 -#}
+{#- Figma: 28 / 28a / 28b staff shop info (Save disabled until changed, unsaved-changes pop-up). Owner: Member 6 -#}
 {% from "_macros.html" import page_head, field, toggle %}
 {% set role = "staff" %}{% set active = "Shop info" %}
 {% block title %}Shop info{% endblock %}
@@ -34,8 +34,7 @@
   </div>
   <div class="stack" style="gap:20px">
     <section class="card gap-10">
-      <h2>Services &amp; rates</h2>
-      {% for v in services %}
+      <h2>Services & rates</h2>
       {% for v in services %}
       <div class="row" style="align-items: center; justify-content: space-between;">
         <label for="rate_{{ v.id }}" style="color:var(--ink)">{{ v.name }} (₱ / {{ v.unit }})</label>
@@ -43,7 +42,7 @@
           <span style="max-width:120px">
             <input class="input" style="height:40px;text-align:right" id="rate_{{ v.id }}" name="rate_{{ v.id }}" type="number" min="0" step="1" value="{{ v.rate|kg }}">
           </span>
-          <button class="btn btn-outline" style="height:40px; color:var(--danger); border-color:var(--danger);" type="submit" name="delete_service_id" value="{{ v.id }}" formnovalidate onclick="window.isSubmitting=true; return confirm('Remove {{ v.name }}?');">
+          <button class="btn btn-outline" style="height:40px; color:var(--danger); border-color:var(--danger);" type="submit" name="delete_service_id" value="{{ v.id }}" formnovalidate onclick="window.isSubmitting=true; return confirm('Remove {{ v.name }}? Existing bookings will not be affected.');">
             Remove
           </button>
         </div>
@@ -56,7 +55,7 @@
         <p style="margin-bottom:8px; font-weight:500;">+ Add new service</p>
         <div class="grid-2" style="gap:12px; margin-bottom:12px;">
           <input class="input" type="text" name="new_service_name" placeholder="Service Name (e.g. Comforter)">
-          <input class="input" type="number" step="0.01" name="new_service_rate" placeholder="Rate (₱)">
+          <input class="input" type="number" step="1" min="1" name="new_service_rate" placeholder="Rate (₱)">
         </div>
         <select class="input" name="new_service_unit">
           <option value="kg">per kg</option>

@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{#- Figma: 23-staff-order-details + 24 / 24a / 24b Confirm weight pop-ups.  Owner: Member 6 -#}
+{#- Figma: 23-staff-order-details + 24 / 24a / 24b Confirm weight pop-ups. Owner: Member 6 -#}
 {% from "_macros.html" import page_head, row, pill, input %}
 {% set role = "staff" %}{% set active = "Orders" %}
 {% block title %}#{{ b.order_code }}{% endblock %}
@@ -66,7 +66,15 @@
     </div>
     <div class="field">
       <label for="actual_weight">Actual weight ({{ b.unit }})</label>
-      {{ input("actual_weight", start|kg, "number", extra='min="0.1" step="0.1" required') }}
+      
+      <!-- Pinalitan to step="1" min="1" instead of 0.1, added invalid check formatting if flash error exists -->
+      {{ input("actual_weight", start|kg, "number", extra='min="1" step="1" required' ~ (' class="invalid"' if weight_error else '')) }}
+      
+      <!-- Red error messaging katulad sa login -->
+      {% if weight_error %}
+        <div style="color:var(--danger); font-size: 13px; margin-top: 4px;">{{ weight_error }}</div>
+      {% endif %}
+      
       <span class="muted small">Booking estimate: {{ b.est_weight|kg }} {{ b.unit }}</span>
     </div>
     <hr class="divider">
