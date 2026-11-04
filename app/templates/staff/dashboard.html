@@ -60,7 +60,13 @@
       </a>
       {% endif %}
     {% endfor %}
-    {% if not pending and not active_orders %}<p class="muted" style="padding-top:8px">All caught up.</p>{% endif %}
+    {% for b in unpaid_done %}
+    <a class="attention" href="{{ url_for('staff.order_details', booking_id=b.id) }}">
+      <span class="circle error">₱</span>
+      <span><span class="a-title">#{{ b.order_code }} is completed but not paid</span><br><span class="a-sub muted">{{ b.customer_name }} · collect {{ booking_price(b).total|peso(2) }}</span></span>
+    </a>
+    {% endfor %}
+    {% if not pending and not active_orders and not unpaid_done %}<p class="muted" style="padding-top:8px">All caught up.</p>{% endif %}
   </section>
 </div>
 {% endblock %}

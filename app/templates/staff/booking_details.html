@@ -19,7 +19,7 @@
     {{ row("Payment", ("Pays on delivery" if b.handling == "pickup-delivery" else "Pays at the counter") ~ " (" ~ payment_methods(b) ~ ")") }}
   </section>
   {% if b.status == "Pending" %}
-  <form class="stack" method="post">
+  <form class="stack" method="post" id="request-form" data-no-enter>
     <section class="card">
       <h2>Confirm schedule</h2>
       {{ field("Confirmed " ~ ("drop-off" if b.handling == "drop-off" else "pickup") ~ " time (sent to customer)", "confirmed_schedule", confirmed_time|time_input, "time", errors, extra='required') }}
@@ -27,7 +27,7 @@
       <hr class="divider">
       {{ field("Reason (if rejecting)", "reason", errors=errors, placeholder="e.g. fully booked that day") }}
     </section>
-    <button class="btn btn-primary btn-block" type="submit" name="action" value="accept">Accept booking</button>
+    <button class="btn btn-primary btn-block" type="button" data-open-modal="accept-modal">Accept booking</button>
     <button class="btn btn-danger btn-block" type="submit" name="action" value="reject" formnovalidate>Reject booking</button>
   </form>
   {% else %}
@@ -38,4 +38,20 @@
   </section>
   {% endif %}
 </div>
+{% endblock %}
+
+{% block modals %}
+{% if b.status == "Pending" %}
+<dialog class="modal modal-sm" id="accept-modal" aria-labelledby="accept-title">
+  <div class="modal-body">
+    <span class="circle success">✓</span>
+    <h2 id="accept-title">Accept this booking?</h2>
+    <p class="text-14">{{ b.customer_name }} will be notified, and an Order ID is created for this booking.</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" type="button" data-close-modal>Not yet</button>
+      <button class="btn btn-primary" type="submit" form="request-form" name="action" value="accept">Yes, accept</button>
+    </div>
+  </div>
+</dialog>
+{% endif %}
 {% endblock %}

@@ -36,16 +36,21 @@
   </div>
   <section class="card" style="gap:14px">
     <h2>Next step</h2>
-    {% if b.status == "Accepted" and price.estimated %}
-      <p class="note warn">Weigh the laundry at the shop to set the final price.</p>
+    {% if b.status == "Accepted" %}
+      <p class="note warn">Weigh the laundry at the shop to set the final price. The order moves to Processing after that.</p>
       <button class="btn btn-primary btn-block" type="button" id="open-weight">Confirm weight</button>
-    {% elif b.status == "Completed" and b.payment_status == "Paid" %}
-      <p class="note">This order is done.</p>
-    {% else %}
-      <button class="btn btn-outline btn-block" type="button" id="open-weight">{{ "Confirm weight" if price.estimated else "Change weight" }}</button>
+    {% elif b.status != "Completed" and not price.estimated %}
+      <button class="btn btn-outline btn-block" type="button" id="open-weight">Change weight</button>
     {% endif %}
-    <a class="btn btn-outline btn-block" href="{{ url_for('staff.update_status', booking_id=b.id) }}">Update status</a>
-    {% if b.payment_status != "Paid" %}<a class="btn btn-outline btn-block" href="{{ url_for('staff.mark_paid', booking_id=b.id) }}">Mark as paid</a>{% endif %}
+    {% if b.status in ("Processing", "Ready for Pickup", "Ready for Delivery") %}
+      <a class="btn btn-outline btn-block" href="{{ url_for('staff.update_status', booking_id=b.id) }}">Update status</a>
+    {% endif %}
+    {% if b.status == "Completed" and b.payment_status != "Paid" %}
+      <p class="note warn">This order is completed but not paid yet. Collect {{ price.total|peso(2) }} ({{ payment_methods(b) }}), then mark it as paid.</p>
+    {% elif b.status == "Completed" %}
+      <p class="note">This order is done.</p>
+    {% endif %}
+    {% if b.payment_status != "Paid" %}<a class="btn {{ 'btn-primary' if b.status == 'Completed' else 'btn-outline' }} btn-block" href="{{ url_for('staff.mark_paid', booking_id=b.id) }}">Mark as paid</a>{% endif %}
   </section>
 </div>
 {% endblock %}

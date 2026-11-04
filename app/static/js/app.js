@@ -99,6 +99,15 @@ document.addEventListener("DOMContentLoaded", () => {
     update();
   }
 
+  // Small confirm pop-ups: a button with data-open-modal="id" opens <dialog id="id">; data-close-modal closes it
+  document.querySelectorAll("[data-open-modal]").forEach((btn) =>
+    btn.addEventListener("click", () => document.getElementById(btn.dataset.openModal)?.showModal()));
+  document.querySelectorAll("[data-close-modal]").forEach((btn) =>
+    btn.addEventListener("click", () => btn.closest("dialog").close()));
+  // a form with data-no-enter is not submitted by pressing Enter in a field (so Accept always asks first)
+  document.querySelectorAll("form[data-no-enter]").forEach((f) =>
+    f.addEventListener("keydown", (e) => { if (e.key === "Enter" && e.target.tagName === "INPUT") e.preventDefault(); }));
+
   // Confirm weight pop-up (staff order details)
   const weightModal = document.querySelector("#weight-modal");
   if (weightModal) {

@@ -18,9 +18,10 @@
       {% endfor %}
     </div>
     {{ error(errors, "status") }}
+    <p class="muted small">An order moves one step at a time and can't go back. Saving "Completed" closes the order.</p>
   </fieldset>
   <section class="card gap-10">
-    <h2>{{ "Delivery" if delivers else "Ready for pickup" }} schedule</h2>
+    <h2>{{ "Delivery" if delivers else "Ready for pickup" }} schedule{% if delivers %} <span class="muted small">(required for Ready for Delivery)</span>{% endif %}</h2>
     {% if existing_schedule and not form_date and not form_time %}
     <p class="muted small">Current schedule: {{ existing_schedule|schedule_label }}</p>
     {% endif %}

@@ -8,7 +8,7 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, session, url_for
 
 from .db import execute, query
-from .helpers import BOOKING_SQL, HANDLING, TIME_SLOTS, booking_price, login_required, now_ph, today_ph
+from .helpers import BOOKING_SQL, HANDLING, TIME_SLOTS, booking_price, login_required, notify_shop, now_ph, today_ph
 
 bp = Blueprint("customer", __name__)
 
@@ -206,6 +206,8 @@ def review():
             [g.user["id"], shop["id"], b["service_name"], b["rate"], b["unit"], b["handling"], b["delivery_fee"],
              b["est_weight"], b["requested_date"], b["requested_time"], b["address"] or None, b["notes"] or None])
         session.pop("draft", None)
+        notify_shop(shop["id"], new_id, "info", "New booking request",
+                    f"{g.user['full_name']} · {b['service_name']} · {b['requested_date']}")
         return redirect(url_for("customer.request_sent", booking_id=new_id))
     return render_template("customer/review.html", shop=shop, b=b, price=booking_price(b))
 
@@ -376,8 +378,12 @@ def edit_info():
 @login_required("customer")
 def cancel_booking(booking_id):
     b = own_booking(booking_id)
-    # only a Pending request can be cancelled (once the shop accepts it, it is no longer the customer's to cancel)
-    if b["status"] == "Pending":
-        execute("UPDATE bookings SET status='Cancelled' WHERE id=%s AND customer_id=%s AND status='Pending'", [booking_id, g.user["id"]])
-        flash("Your booking request was cancelled.")
+    # Cancel policy: free until the shop starts processing (the laundry is not weighed or washed yet).
+    # The Order ID of an accepted booking is dropped, so it disappears from the shop's orders.
+    if b["status"] in ("Pending", "Accepted"):
+        execute("""UPDATE bookings SET status='Cancelled', order_code=NULL, confirmed_schedule=NULL
+                   WHERE id=%s AND customer_id=%s AND status IN ('Pending','Accepted')""", [booking_id, g.user["id"]])
+        notify_shop(b["shop_id"], booking_id, "error", "Booking cancelled",
+                    f"{g.user['full_name']} cancelled {('#' + b['order_code']) if b['order_code'] else 'a booking request'}")
+        flash("Your booking was cancelled.")
     return redirect(url_for("customer.my_orders", tab="past"))

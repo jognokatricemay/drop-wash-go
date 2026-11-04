@@ -25,6 +25,12 @@ STATUSES = [
 TODAY_PICKUP_STATUSES = ("Pending", "Accepted", "Processing")
 
 
+def status_flow(b):
+    """The steps of one order, in order. An order moves one step at a time and never goes back."""
+    ready = "Ready for Delivery" if b["handling"] == "pickup-delivery" else "Ready for Pickup"
+    return ["Accepted", "Processing", ready, "Completed"]
+
+
 def order_code(shop_name, booking_id):
     normalized_name = " ".join(shop_name.casefold().split())
     prefix = SHOP_ORDER_PREFIXES.get(normalized_name)
@@ -58,8 +64,10 @@ def dashboard():
            AND status IN %s""",
         [sid, today, TODAY_PICKUP_STATUSES], one=True,
     )["n"]
+    unpaid_done = query(BOOKING_SQL + """ WHERE b.shop_id=%s AND b.status='Completed' AND b.payment_status<>'Paid'
+                       ORDER BY b.updated_at DESC LIMIT 6""", [sid])
     return render_template("staff/dashboard.html", counts=counts, active_orders=active,
-                           today_pickup_count=today_pickup_count)
+                           today_pickup_count=today_pickup_count, unpaid_done=unpaid_done)
 
 
 @bp.route("/pickups/today")
@@ -102,7 +110,7 @@ def booking_details(booking_id):
                 notify(b["customer_id"], b["id"], "error", "Booking not accepted", f"{b['shop_name']} · {reason}")
                 flash(f"Booking from {b['customer_name']} was rejected.")
                 return redirect(url_for("staff.requests"))
-        else:
+        elif request.form.get("action") == "accept":
             if not time_input_value(confirmed_time) or confirmed_time != time_input_value(confirmed_time):
                 errors["confirmed_schedule"] = "Choose a time."
             else:
@@ -137,6 +145,8 @@ def orders():
         where += " AND b.status <> 'Completed'"
     elif tab == "completed":
         where += " AND b.status = 'Completed'"
+    elif tab == "unpaid":  # done, but the money is not collected yet
+        where += " AND b.status = 'Completed' AND b.payment_status <> 'Paid'"
     if q:
         where += " AND (b.order_code LIKE %s OR u.full_name LIKE %s)"
         args += [f"%{q.lstrip('#')}%", f"%{q}%"]
@@ -158,6 +168,13 @@ def order_details(booking_id):
 def confirm_weight(booking_id):
     """The Confirm weight pop-up on the order details page posts here."""
     b = shop_booking(booking_id)
+    if b["status"] == "Completed":
+        flash("This order is completed. The weight can't be changed anymore.")
+        return redirect(url_for("staff.order_details", booking_id=b["id"]))
+    # the weight is confirmed once, while Accepted; after that it can only be corrected until the order is completed
+    if b["status"] not in status_flow(b) or (b["status"] != "Accepted" and b["actual_weight"] is None):
+        flash("The weight can only be confirmed while the order is Accepted.")
+        return redirect(url_for("staff.order_details", booking_id=b["id"]))
     try:
         weight = Decimal(request.form.get("actual_weight", ""))
         if weight <= 0 or weight > 100:
@@ -179,6 +196,19 @@ def confirm_weight(booking_id):
 @login_required("staff")
 def update_status(booking_id):
     b = shop_booking(booking_id)
+    flow = status_flow(b)
+    if b["status"] not in flow:
+        return redirect(url_for("staff.booking_details", booking_id=b["id"]))
+    if b["status"] == "Completed":
+        flash("This order is completed. Its status can't be changed anymore.")
+        return redirect(url_for("staff.order_details", booking_id=b["id"]))
+    if b["status"] == "Accepted":  # the laundry has to be weighed first; saving the weight starts Processing
+        flash("Confirm the weight first. The order moves to Processing after that.")
+        return redirect(url_for("staff.order_details", booking_id=b["id"]))
+    # only the current status and the next one can be chosen
+    allowed = flow[flow.index(b["status"]):][:2]
+    choices = [(name, sub) for name, sub in STATUSES if name in allowed]
+
     errors = {}
     selected_status = request.form.get("status", b["status"]) if request.method == "POST" else b["status"]
     form_date = request.form.get("delivery_date", "").strip() if request.method == "POST" else ""
@@ -194,19 +224,20 @@ def update_status(booking_id):
 
     if request.method == "POST":
         status = request.form.get("status")
-        if status not in [s for s, _ in STATUSES]:
-            errors["status"] = "Choose a status."
-            flash("Choose a status.")
+        if status not in allowed:
+            errors["status"] = "Choose the current status or the next step. An order can't skip a step or go back."
         schedule = None
-        if form_date or form_time:
+        # the customer must know when the laundry will be delivered, so Ready for Delivery needs a schedule
+        needs_schedule = status == "Ready for Delivery"
+        if needs_schedule or form_date or form_time:
             try:
                 scheduled_date = datetime.strptime(form_date, "%Y-%m-%d").date()
                 if scheduled_date < today_ph():
                     errors["delivery_date"] = "Choose today or a later date."
             except ValueError:
-                errors["delivery_date"] = "Choose a date."
+                errors["delivery_date"] = "Choose a delivery date." if needs_schedule else "Choose a date."
             if not form_time or form_time != time_input_value(form_time):
-                errors["delivery_time"] = "Choose a time."
+                errors["delivery_time"] = "Choose a delivery time." if needs_schedule else "Choose a time."
             if not errors:
                 schedule = f"{form_date}T{form_time}"
         if not errors:
@@ -217,8 +248,10 @@ def update_status(booking_id):
                 body = f"#{b['order_code']}" + (f" · {schedule_label(schedule)}" if schedule else "")
                 notify(b["customer_id"], b["id"], kind, status if status != "Processing" else "Your laundry is being processed", body)
             flash(f"#{b['order_code']} is now {status}.")
+            if status == "Completed" and b["payment_status"] != "Paid":
+                flash("Reminder: this order is not marked as paid yet. Collect the payment, then use Mark as paid.")
             return redirect(url_for("staff.order_details", booking_id=b["id"]))
-    return render_template("staff/update_status.html", b=b, price=booking_price(b), statuses=STATUSES,
+    return render_template("staff/update_status.html", b=b, price=booking_price(b), statuses=choices,
                            errors=errors, selected_status=selected_status, form_date=form_date, form_time=form_time,
                            existing_schedule=existing_schedule)
 
@@ -252,6 +285,35 @@ def mark_paid(booking_id):
             flash(f"#{b['order_code']} is marked as paid.")
             return redirect(url_for("staff.order_details", booking_id=b["id"]))
     return render_template("staff/mark_paid.html", b=b, price=price, errors=errors, form=request.form)
+
+
+# ---------- Notifications (new requests, cancellations) ----------
+
+@bp.route("/notifications")
+@login_required("staff")
+def notifications():
+    rows = query("SELECT * FROM notifications WHERE user_id=%s ORDER BY created_at DESC, id DESC LIMIT 50", [g.user["id"]])
+    return render_template("staff/notifications.html", items=rows, now=datetime.now())
+
+
+@bp.route("/notifications/read-all", methods=["POST"])
+@login_required("staff")
+def read_all():
+    execute("UPDATE notifications SET is_read=1 WHERE user_id=%s", [g.user["id"]])
+    return redirect(url_for("staff.notifications"))
+
+
+@bp.route("/notifications/<int:nid>")
+@login_required("staff")
+def open_notification(nid):
+    n = query("SELECT * FROM notifications WHERE id=%s AND user_id=%s", [nid, g.user["id"]], one=True)
+    if not n:
+        abort(404)
+    execute("UPDATE notifications SET is_read=1 WHERE id=%s", [nid])
+    if not n["booking_id"]:
+        return redirect(url_for("staff.notifications"))
+    # a request opens its request page; an accepted order opens its order page (order_details sorts that out)
+    return redirect(url_for("staff.order_details", booking_id=n["booking_id"]))
 
 
 # ---------- Member 6: shop info and profile ----------
