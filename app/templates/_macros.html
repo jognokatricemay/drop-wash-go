@@ -2,19 +2,41 @@
     Inputs with checked / selected / disabled are built here, so page templates
     never need template tags inside an HTML tag. -#}
 
-{% macro pill(status) %}<span class="pill {{ status|pill }}">{{ status }}</span>{% endmacro %}
+{% macro pill(status) %}
+  {% set s = (status or '')|string|lower|trim %}
+  {% if s == 'pending' %}
+    <span class="pill pill-warning">Pending</span>
+  {% elif s == 'completed' or s == 'paid' %}
+    <span class="pill pill-success">{{ status }}</span>
+  {% elif s == 'cancelled' %}
+    <span class="pill pill-danger">Cancelled</span>
+  {% elif s == 'rejected' %}
+    <span class="pill pill-danger">Rejected</span>
+  {% else %}
+    <span class="pill pill-info">{{ status }}</span>
+  {% endif %}
+{% endmacro %}
 
-{% macro row(label, value, cls="") %}<div class="row {{ cls }}"><span>{{ label }}</span><span>{{ value }}</span></div>{% endmacro %}
+{#- A row with a label and value, used for order details. -#}
+{% macro row(label, value, extra_class="") -%}
+<div class="row {{ extra_class }}">
+  <span class="row-label">{{ label }}</span>
+  <span class="row-value">{{ value }}</span>
+</div>
+{%- endmacro %}
 
-{%- macro error(errors, name) -%}
-{% if errors and errors.get(name) %}<span class="error-text" id="{{ name }}-err">{{ errors[name] }}</span>{% endif %}
-{%- endmacro -%}
+{#- Error message helper macro -#}
+{% macro error(errors, name) -%}
+  {% if errors and errors.get(name) %}
+    <small class="err-msg" id="{{ name }}-err">{{ errors.get(name) }}</small>
+  {% endif %}
+{%- endmacro %}
 
 {#- A labelled input. errors is the dict from the route; name is the form field name. -#}
 {% macro field(label, name, value="", type="text", errors={}, placeholder="", extra="") %}
-<div class="field {{ 'has-error' if errors.get(name) }}">
+<div class="field {{ 'has-error' if errors and errors.get(name) }}">
   <label for="{{ name }}">{{ label|safe }}</label>
-  {{ input(name, value, type, placeholder, errors.get(name), extra) }}
+  {{ input(name, value, type, placeholder, errors and errors.get(name), extra) }}
   {{ error(errors, name) }}
 </div>
 {% endmacro %}
@@ -25,7 +47,7 @@
 
 {#- options = list of (value, label) or (value, label, extra-attrs) -#}
 {% macro select(label, name, options, selected, errors={}) %}
-<div class="field {{ 'has-error' if errors.get(name) }}">
+<div class="field {{ 'has-error' if errors and errors.get(name) }}">
   <label for="{{ name }}">{{ label }}</label>
   <select class="input" id="{{ name }}" name="{{ name }}">
     {%- for opt in options %}<option value="{{ opt[0] }}"{% if opt[0]|string == selected|string %} selected{% endif %}{% if opt|length > 2 %} {{ opt[2]|safe }}{% endif %}>{{ opt[1] }}</option>{% endfor -%}

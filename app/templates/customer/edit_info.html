@@ -9,39 +9,134 @@
 {% block content %}
 {{ page_head("Edit personal information", back=("Back to Profile", url_for('customer.profile')), sub="Update your profile details below.") }}
 
-<form method="POST" id="edit-info-form">
-  {{ field("Full name", "full_name", form.get("full_name", "") if form.get is defined else (form.full_name or ""), errors=errors, placeholder="Juan Dela Cruz") }}
+<form method="POST" id="edit-info-form" style="display: flex; flex-direction: column; gap: 20px;">
+  <div class="field-group">
+    {{ field("Full name", "full_name", form.get("full_name", "") if form.get is defined else (form.full_name or ""), errors=errors, placeholder="Juan Dela Cruz") }}
+  </div>
   
-  <div class="grid-2">
-    {{ field("Mobile number", "mobile", form.get("mobile", "") if form.get is defined else (form.mobile or ""), type="tel", errors=errors, placeholder="09171234567") }}
-    {{ field("Email (optional)", "email", form.get("email", "") if form.get is defined else (form.email or ""), type="email", errors=errors, placeholder="name@example.com") }}
+  <div class="grid-2" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 20px;">
+    <div class="field-group" style="display: flex; flex-direction: column;">
+      {{ field("Mobile number", "mobile", form.get("mobile", "") if form.get is defined else (form.mobile or ""), type="tel", errors=errors, placeholder="09171234567") }}
+      <span id="mobile-error" class="error-text" style="display: none;"></span>
+    </div>
+
+    <div class="field-group">
+      {{ field("Email (optional)", "email", form.get("email", "") if form.get is defined else (form.email or ""), type="email", errors=errors, placeholder="name@example.com") }}
+    </div>
   </div>
 
-  <div style="margin-top: 24px; display: flex; gap: 12px;">
-    <button class="btn btn-primary btn-block" type="submit" id="save-btn" disabled style="opacity: 0.6; cursor: not-allowed;">Save Changes</button>
-    <a href="{{ url_for('customer.profile') }}" class="btn btn-secondary btn-block">Cancel</a>
+  <div style="margin-top: 12px; display: flex; gap: 12px;">
+    <button class="btn btn-primary btn-block" type="submit" id="save-btn" disabled style="opacity: 0.6; cursor: not-allowed; flex: 1;">Save Changes</button>
+    <a href="{{ url_for('customer.profile') }}" class="btn btn-secondary btn-block" style="flex: 1; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center;">Cancel</a>
   </div>
 </form>
 
+<dialog id="discard-modal" class="custom-modal">
+  <div class="stack" style="gap: 16px;">
+    <h3 style="margin: 0; font-size: 1.25rem;">Discard unsaved changes?</h3>
+    <p class="muted" style="margin: 0; font-size: 0.95rem;">You have unsaved changes on this page. If you leave now, your updates will be lost.</p>
+    
+    <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px;">
+      <button type="button" id="cancel-discard-btn" class="btn btn-secondary">
+        Keep editing
+      </button>
+      <button type="button" id="confirm-discard-btn" class="btn btn-danger">
+        Discard changes
+      </button>
+    </div>
+  </div>
+</dialog>
+
+<style>
+  .custom-modal {
+    border: none;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 420px;
+    width: 90%;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+    background: #ffffff;
+    margin: auto;
+  }
+
+  .custom-modal::backdrop {
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+  }
+
+  .error-text {
+    color: #dc2626;
+    font-size: 0.85rem;
+    margin-top: 6px;
+    line-height: 1.25;
+  }
+</style>
+
 <script>
   document.addEventListener("DOMContentLoaded", function() {
-    const fields = document.querySelectorAll("input[name='full_name'], input[name='mobile'], input[name='email']");
+    const form = document.getElementById("edit-info-form");
+    const modal = document.getElementById("discard-modal");
+    const cancelDiscardBtn = document.getElementById("cancel-discard-btn");
+    const confirmDiscardBtn = document.getElementById("confirm-discard-btn");
     const saveButton = document.getElementById("save-btn");
+    
+    const fullNameInput = document.querySelector("input[name='full_name']");
+    const mobileInput = document.querySelector("input[name='mobile']");
+    const emailInput = document.querySelector("input[name='email']");
+    const mobileError = document.getElementById("mobile-error");
 
-    const originalValues = {};
-    fields.forEach(field => {
-      originalValues[field.name] = field.value.trim();
-    });
+    if (!form || !modal) return;
 
-    function checkChanges() {
-      let hasChanges = false;
-      fields.forEach(field => {
-        if (field.value.trim() !== originalValues[field.name]) {
-          hasChanges = true;
+    let isDirty = false;
+    let isSubmitting = false;
+    let targetUrl = null;
+
+    const originalValues = {
+      full_name: fullNameInput ? fullNameInput.value.trim() : "",
+      mobile: mobileInput ? mobileInput.value.trim() : "",
+      email: emailInput ? emailInput.value.trim() : ""
+    };
+
+    function validateMobile(val) {
+      if (!val) {
+        return "Mobile number is required.";
+      }
+      if (!/^09\d{9}$/.test(val)) {
+        return "Mobile number must be 11 digits starting with 09.";
+      }
+      return "";
+    }
+
+    function checkFormState() {
+      const mobileVal = mobileInput ? mobileInput.value.trim() : "";
+      const fullNameVal = fullNameInput ? fullNameInput.value.trim() : "";
+      const emailVal = emailInput ? emailInput.value.trim() : "";
+
+      const hasChanges = (fullNameVal !== originalValues.full_name) ||
+                         (mobileVal !== originalValues.mobile) ||
+                         (emailVal !== originalValues.email);
+
+      isDirty = hasChanges;
+
+      const errorMsg = validateMobile(mobileVal);
+      
+      if (mobileVal !== originalValues.mobile || mobileVal.length > 0) {
+        if (errorMsg) {
+          mobileError.textContent = errorMsg;
+          mobileError.style.display = "block";
+          if (mobileInput) mobileInput.style.borderColor = "#dc2626";
+        } else {
+          mobileError.style.display = "none";
+          if (mobileInput) mobileInput.style.borderColor = "";
         }
-      });
+      } else {
+        mobileError.style.display = "none";
+        if (mobileInput) mobileInput.style.borderColor = "";
+      }
 
-      if (hasChanges) {
+      const isValid = !errorMsg && fullNameVal.length > 0;
+
+      if (hasChanges && isValid) {
         saveButton.removeAttribute("disabled");
         saveButton.style.opacity = "1";
         saveButton.style.cursor = "pointer";
@@ -52,9 +147,48 @@
       }
     }
 
-    fields.forEach(field => {
-      field.addEventListener("input", checkChanges);
-      field.addEventListener("change", checkChanges);
+    [fullNameInput, mobileInput, emailInput].forEach(input => {
+      if (input) {
+        input.addEventListener("input", checkFormState);
+        input.addEventListener("change", checkFormState);
+      }
+    });
+
+    form.addEventListener("submit", (e) => {
+      const mobileVal = mobileInput ? mobileInput.value.trim() : "";
+      const errorMsg = validateMobile(mobileVal);
+
+      if (errorMsg) {
+        e.preventDefault();
+        mobileError.textContent = errorMsg;
+        mobileError.style.display = "block";
+        if (mobileInput) mobileInput.style.borderColor = "#dc2626";
+        return;
+      }
+
+      isSubmitting = true;
+    });
+
+    document.addEventListener("click", function(e) {
+      const link = e.target.closest("a");
+      if (link && isDirty && !isSubmitting) {
+        e.preventDefault();
+        targetUrl = link.href;
+        modal.showModal();
+      }
+    });
+
+    cancelDiscardBtn.addEventListener("click", () => {
+      modal.close();
+      targetUrl = null;
+    });
+
+    confirmDiscardBtn.addEventListener("click", () => {
+      isDirty = false;
+      modal.close();
+      if (targetUrl) {
+        window.location.href = targetUrl;
+      }
     });
   });
 </script>

@@ -6,7 +6,7 @@ from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 import email
 
-from flask import Blueprint, abort, g, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, g, redirect, render_template, request, session, url_for, flash
 
 from .db import execute, query
 from .helpers import BOOKING_SQL, HANDLING, TIME_SLOTS, booking_price, login_required
@@ -162,12 +162,19 @@ def request_sent(booking_id):
 @login_required("customer")
 def my_orders():
     tab = request.args.get("tab", "active")
+    uid = g.user["id"]
+    
     if tab == "past":
-        rows = query(BOOKING_SQL + " WHERE b.customer_id=%s AND b.status IN ('Completed','Rejected') ORDER BY b.updated_at DESC",
-                     [g.user["id"]])
+        rows = query(
+            BOOKING_SQL + " WHERE b.customer_id=%s AND b.status IN ('Completed','Rejected','Cancelled') ORDER BY b.updated_at DESC, b.id DESC",
+            [uid]
+        )
     else:
-        rows = query(BOOKING_SQL + " WHERE b.customer_id=%s AND b.status IN %s ORDER BY b.created_at DESC",
-                     [g.user["id"], ACTIVE])
+        rows = query(
+            BOOKING_SQL + " WHERE b.customer_id=%s AND b.status IN %s ORDER BY b.created_at DESC, b.id DESC",
+            [uid, ACTIVE]
+        )
+        
     return render_template("customer/my_orders.html", orders=rows, tab=tab)
 
 
@@ -240,7 +247,7 @@ def edit_address():
             active_page="profile"
         )
 
-    # GET Request
+    
     user = query("SELECT address FROM users WHERE id=%s", [uid], one=True)
     return render_template(
         "customer/edit_address.html", 
@@ -250,15 +257,7 @@ def edit_address():
         active_page="profile"
     )
 
-@bp.route("/orders/<int:booking_id>/cancel", methods=["POST"])
-@login_required("customer")
-def cancel_booking(booking_id):
-    b = own_booking(booking_id)
-    
-    if b["status"] == "Pending":
-        execute("UPDATE bookings SET status='Cancelled' WHERE id=%s AND customer_id=%s", [booking_id, g.user["id"]])
-        
-    return redirect(url_for("customer.order_details", booking_id=booking_id))
+
 
 @bp.route("/profile/edit-info", methods=["GET", "POST"])
 @login_required("customer")
@@ -296,22 +295,29 @@ def edit_info():
                 "UPDATE users SET full_name=%s, mobile=%s, email=%s WHERE id=%s",
                 [full_name, mobile, email if email else None, uid]
             )
+            flash("Personal information updated successfully.", "success")
             return redirect(url_for("customer.profile"))
 
         return render_template(
             "customer/edit_info.html", 
             errors=errors, 
-            form={"full_name": full_name, "mobile": mobile, "email": email}, 
-            active="profile", 
-            active_page="profile"
+            form={"full_name": full_name, "mobile": mobile, "email": email}
         )
 
-    # GET Request
     user = query("SELECT full_name, mobile, email FROM users WHERE id=%s", [uid], one=True)
-    return render_template(
-        "customer/edit_info.html", 
-        errors={}, 
-        form=user, 
-        active="profile", 
-        active_page="profile"
-    )
+    form = {
+        "full_name": user["full_name"] if user else g.user.get("full_name", ""),
+        "mobile": user["mobile"] if user else g.user.get("mobile", ""),
+        "email": user["email"] if user else g.user.get("email", "")
+    }
+
+    return render_template("customer/edit_info.html", errors=errors, form=form)
+
+@bp.route("/orders/<int:booking_id>/cancel", methods=["POST"])
+@login_required("customer")
+def cancel_booking(booking_id):
+    b = own_booking(booking_id)
+    if b and str(b.get("status", "")).lower() == "pending":
+        execute("UPDATE bookings SET status='Cancelled' WHERE id=%s AND customer_id=%s", [booking_id, g.user["id"]])
+        flash("Your booking request was cancelled.", "info")
+    return redirect(url_for("customer.my_orders", tab="past"))

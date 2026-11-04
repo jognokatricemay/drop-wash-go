@@ -7,10 +7,24 @@
 {% call page_head("My orders", "Booking requests and orders from all shops.") %}
   <a class="btn btn-primary" href="{{ url_for('customer.shops') }}">Book laundry</a>
 {% endcall %}
+
+{% with messages = get_flashed_messages(with_categories=true) %}
+  {% if messages %}
+    <div class="stack" style="gap: 10px; margin-bottom: 16px;">
+      {% for category, message in messages %}
+        <div class="alert alert-{{ category if category != 'message' else 'info' }}">
+          {{ message }}
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
+
 <div class="chips">
   <a class="chip {{ 'active' if tab != 'past' }}" href="{{ url_for('customer.my_orders') }}">Active</a>
   <a class="chip {{ 'active' if tab == 'past' }}" href="{{ url_for('customer.my_orders', tab='past') }}">Past</a>
 </div>
+
 <section class="card">
   {% if orders %}
   <div class="table-wrap">
@@ -24,8 +38,8 @@
           <td data-label="Shop">{{ b.shop_name }}</td>
           <td data-label="Handling">{{ b.handling|handling }}</td>
           <td data-label="Weight">{{ (b.actual_weight|kg ~ " kg") if b.actual_weight else ("Est. " ~ b.est_weight|kg ~ " kg") }}</td>
-          <td data-label="Payment">{% if b.status in ("Pending", "Rejected") %}—{% else %}{{ pill(b.payment_status) }}{% endif %}</td>
-          <td data-label="Status">{{ pill(b.status) }}</td>
+          <td data-label="Payment"><span>{% if b.status in ("Pending", "Rejected", "Cancelled") %}—{% else %}{{ pill(b.payment_status) }}{% endif %}</span></td>
+          <td data-label="Status"><span>{{ pill(b.status) }}</span></td>
         </tr>
       {% endfor %}
       </tbody>
