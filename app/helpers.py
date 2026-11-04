@@ -1,6 +1,6 @@
 """Shared helpers: who is logged in, role checks, prices and template filters."""
 import re
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from functools import wraps
 from datetime import time
@@ -24,7 +24,14 @@ HANDLING = {"drop-off": "Drop-off", "pickup": "Pickup", "pickup-delivery": "Pick
 
 PILL = {"Pending": "pending", "Accepted": "accepted", "Processing": "processing",
         "Ready for Pickup": "ready", "Ready for Delivery": "ready", "Completed": "completed",
-        "Rejected": "rejected","Cancelled":"cancelled", "Unpaid": "unpaid", "Paid": "paid"}
+        "Rejected": "rejected", "Cancelled": "cancelled", "Unpaid": "unpaid", "Paid": "paid"}
+
+TIME_SLOTS = {
+    "9-11 AM":  (time(9, 0),  time(11, 0)),
+    "11-1 PM":  (time(11, 0), time(13, 0)),
+    "1-3 PM":   (time(13, 0), time(15, 0)),
+    "3-5 PM":   (time(15, 0), time(17, 0)),
+}
 
 # A booking with its shop and customer details. Add WHERE / ORDER BY after it.
 BOOKING_SQL = """

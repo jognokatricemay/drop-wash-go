@@ -10,7 +10,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app import create_app  # noqa: E402
-from app.db import init_db_command, query  # noqa: E402
+from app.db import execute, init_db_command, query  # noqa: E402
 from app.helpers import schedule_label, time_input_value, time_label  # noqa: E402
 from app.staff import order_code  # noqa: E402
 
@@ -81,7 +81,7 @@ html = r.get_data(as_text=True)
 check("booking validation errors shown", "Please fix 4 fields" in html, re.findall(r"Please fix \d+ \w+", html))
 tomorrow = (date.today() + timedelta(days=1)).isoformat()
 r = c.post("/shops/1/book", data={"service_id": "1", "handling": "pickup-delivery", "est_weight": "4", "requested_date": tomorrow,
-                                  "requested_time": "13:30", "address": "123 Mabini St., Balete", "notes": "No softener"})
+                                  "requested_time": "1-3 PM", "address": "123 Mabini St., Balete", "notes": "No softener"})
 check("valid booking goes to review", r.status_code == 302 and r.headers["Location"].endswith("/book/review"))
 get(c, "/book/review", contains="₱190")  # 35 x 4 + 50
 r = c.post("/book/review")
@@ -89,8 +89,38 @@ check("booking submitted", r.status_code == 302 and "/book/sent/" in r.headers["
 new_id = int(r.headers["Location"].rsplit("/", 1)[1])
 get(c, f"/book/sent/{new_id}", contains="Request sent")
 r = c.post("/shops/3/book", data={"service_id": "7", "handling": "pickup", "est_weight": "3", "requested_date": tomorrow,
-                                  "requested_time": "09:00", "address": "x"})
-check("unsupported handling rejected (FR-11)", "offer that option" in r.get_data(as_text=True))
+                                  "requested_time": "9-11 AM", "address": "x"})
+check("unsupported handling rejected (FR-11)", "offer the selected option" in r.get_data(as_text=True))
+
+# ---- booking validation messages (guest, weight, date, closing time)
+r = guest.get("/shops/1/book")
+check("guest must log in to book", r.status_code == 302 and "/login" in r.headers["Location"] and "next=" in r.headers["Location"])
+get(guest, "/shops", contains="no-shops")
+get(guest, "/shops", contains='data-value="pickup"')
+get(c, "/shops/1/book", contains=f'min="{date.today().isoformat()}"')
+book = {"service_id": "1", "handling": "pickup-delivery", "est_weight": "4", "requested_date": tomorrow,
+        "requested_time": "1-3 PM", "address": "123 Mabini St., Balete"}
+for label, change, words in [
+    ("weight 0 is refused", {"est_weight": "0"}, "greater than 0"),
+    ("negative weight is refused", {"est_weight": "-2"}, "greater than 0"),
+    ("weight over 100 is refused", {"est_weight": "101"}, "up to 100 kg"),
+    ("weight that is not a number is refused", {"est_weight": "abc"}, "as a number"),
+    ("past date is refused", {"requested_date": (date.today() - timedelta(days=1)).isoformat()}, "Past dates are not allowed"),
+    ("pickup needs an address", {"address": " "}, "pick up your laundry"),
+]:
+    r = c.post("/shops/1/book", data={**book, **change})
+    check(label, words in r.get_data(as_text=True))
+
+# a shop that closes at 12 PM can't be booked for the 1-3 PM slot
+with app.app_context():
+    old_hours = query("SELECT opening_hours FROM shops WHERE id=1", one=True)["opening_hours"]
+    execute("UPDATE shops SET opening_hours=%s WHERE id=1", ["8:00 AM - 12:00 PM"])
+r = c.post("/shops/1/book", data=book)
+check("booking after closing time is refused", "open from" in r.get_data(as_text=True) and "12:00 PM" in r.get_data(as_text=True))
+r = c.post("/shops/1/book", data={**book, "requested_time": "9-11 AM"})
+check("booking before closing time is accepted", r.status_code == 302)
+with app.app_context():
+    execute("UPDATE shops SET opening_hours=%s WHERE id=1", [old_hours])
 
 # ---------- staff ----------
 s = app.test_client()

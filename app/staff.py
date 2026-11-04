@@ -8,7 +8,7 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
 from .db import execute, query
-from .helpers import BOOKING_SQL, booking_price, login_required, notify, peso, schedule_label, time_input_value, time_label
+from .helpers import BOOKING_SQL, booking_price, login_required, notify, peso, schedule_label, time_input_value, time_label, today_ph
 
 bp = Blueprint("staff", __name__, url_prefix="/shop")
 
@@ -47,7 +47,7 @@ def shop_booking(booking_id):
 @login_required("staff")
 def dashboard():
     sid = g.shop["id"]
-    today = date.today().isoformat()
+    today = today_ph().isoformat()
     counts = {r["status"]: r["n"] for r in query(
         "SELECT status, COUNT(*) AS n FROM bookings WHERE shop_id=%s GROUP BY status", [sid])}
     active = query(BOOKING_SQL + """ WHERE b.shop_id=%s AND b.order_code IS NOT NULL
@@ -65,12 +65,12 @@ def dashboard():
 @bp.route("/pickups/today")
 @login_required("staff")
 def today_pickups():
-    today = date.today().isoformat()
+    today = today_ph().isoformat()
     rows = query(BOOKING_SQL + """ WHERE b.shop_id=%s AND b.requested_date=%s
                       AND b.handling IN ('pickup','pickup-delivery') AND b.status IN %s
                       ORDER BY b.requested_time, b.id""",
                  [g.shop["id"], today, TODAY_PICKUP_STATUSES])
-    return render_template("staff/today_pickups.html", rows=rows, today=date.today())
+    return render_template("staff/today_pickups.html", rows=rows, today=today_ph())
 
 
 @bp.route("/requests")
@@ -201,7 +201,7 @@ def update_status(booking_id):
         if form_date or form_time:
             try:
                 scheduled_date = datetime.strptime(form_date, "%Y-%m-%d").date()
-                if scheduled_date < date.today():
+                if scheduled_date < today_ph():
                     errors["delivery_date"] = "Choose today or a later date."
             except ValueError:
                 errors["delivery_date"] = "Choose a date."

@@ -8,7 +8,7 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, abort, g, redirect, render_template, request, session, url_for, flash
 
 from .db import execute, query
-from .helpers import BOOKING_SQL, HANDLING, booking_price, login_required, time_input_value
+from .helpers import BOOKING_SQL, HANDLING, TIME_SLOTS, booking_price, login_required, now_ph, today_ph
 
 bp = Blueprint("customer", __name__)
 
@@ -145,47 +145,26 @@ def book(shop_id):
         "handling": draft.get("handling", offered[-1] if offered else "drop-off"),
         "est_weight": draft.get("est_weight", ""),
         "requested_date": draft.get("requested_date", ""),
-        "requested_time": draft.get("requested_time", "09:00"),
+        "requested_time": draft.get("requested_time", "9-11 AM"),
         "address": draft.get("address", g.user["address"] or ""),
         "notes": draft.get("notes", ""),
     }
 
     if request.method == "POST":
-        service = next((s for s in shop["services"] if str(s["id"]) == form.get("service_id")), None)
-        if not service:
-            errors["service_id"] = "Choose a service."
-        handling = form.get("handling")
-        if handling not in offered:
-            errors["handling"] = "This shop doesn't offer that option."
-        try:
-            weight = Decimal(form.get("est_weight", ""))
-            if weight <= 0 or weight > 100:
-                raise InvalidOperation
-        except (InvalidOperation, ValueError):
-            errors["est_weight"] = "Enter the estimated weight."
-        try:
-            when = datetime.strptime(form.get("requested_date", ""), "%Y-%m-%d").date()
-            if when < date.today():
-                errors["requested_date"] = "Choose today or a later date."
-        except ValueError:
-            errors["requested_date"] = "Choose a date."
-        requested_time = form.get("requested_time", "").strip()
-        if not time_input_value(requested_time) or requested_time != time_input_value(requested_time):
-            errors["requested_time"] = "Choose a time."
-        if handling in ("pickup", "pickup-delivery") and not form.get("address", "").strip():
-            errors["address"] = "Enter the pickup address."
+        errors, service, weight = validate_booking(shop, form, offered)
         if not errors:
             handling = form.get("handling")
             session["draft"] = {
                 "shop_id": shop_id, "service_id": service["id"], "handling": handling,
                 "est_weight": str(weight), "requested_date": form["requested_date"],
-                "requested_time": requested_time,
+                "requested_time": form["requested_time"],
                 "address": form.get("address", "").strip() if handling != "drop-off" else "",
                 "notes": form.get("notes", "").strip()[:255],
             }
             return redirect(url_for("customer.review"))
     return render_template("customer/book.html", shop=shop, offered=offered, errors=errors, form=form,
-                           handling_labels=HANDLING)
+                           time_slots=TIME_SLOTS, handling_labels=HANDLING,
+                           today=today_ph().isoformat())
 
 
 def draft_booking():
