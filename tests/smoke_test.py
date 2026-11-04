@@ -139,6 +139,8 @@ r = app.test_client().post("/login", data={"mobile": "09171234567", "password": 
 check("forgot: old password no longer works", r.status_code == 200)
 
 fs = app.test_client()
+r = app.test_client().post("/shop/forgot-password", data={"identifier": "FE.REYES"})
+check("forgot (shop): username is case-sensitive", "No account found" in r.get_data(as_text=True))
 r = fs.post("/shop/forgot-password", data={"identifier": "fe.reyes"})
 check("forgot (shop): shows the security question", "What is your favorite food?" in r.get_data(as_text=True))
 r = fs.post("/shop/forgot-password", data={"answer": "adobo", "new_password": "shoppass123", "confirm_password": "shoppass123"})

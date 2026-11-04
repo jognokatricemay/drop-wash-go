@@ -177,7 +177,8 @@ def forgot_password(role):
     if request.method == "POST":
         if "identifier" in request.form:  # ---- step 1
             ident = request.form["identifier"].replace(" ", "")
-            column = "mobile" if role == "customer" else "username"
+            # BINARY = exact match for shop usernames, same as the shop login ("FE.REYES" is not "fe.reyes")
+            column = "mobile" if role == "customer" else "BINARY username"
             user = query(f"SELECT * FROM users WHERE role=%s AND {column}=%s", [role, ident], one=True)
             if not user or not user["security_question"]:
                 user = None
