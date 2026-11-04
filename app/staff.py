@@ -77,7 +77,7 @@ def today_pickups():
 @login_required("staff")
 def requests():
     tab = request.args.get("tab", "Pending")
-    where = {"Pending": "b.status='Pending'", "Rejected": "b.status='Rejected'"}.get(
+    where = {"Pending": "b.status='Pending'", "Rejected": "b.status='Rejected'", "Cancelled": "b.status='Cancelled'"}.get(
         tab, "b.order_code IS NOT NULL")
     rows = query(BOOKING_SQL + f" WHERE b.shop_id=%s AND {where} ORDER BY b.requested_date, b.id DESC LIMIT 50",
                  [g.shop["id"]])

@@ -6,6 +6,7 @@
 {% block content %}
 {{ page_head("Booking requests", "Accept or reject new bookings. Order IDs are created on accept.") }}
 <div class="chips">
+  <a class="chip {{ 'active' if tab == 'Cancelled' }}" href="{{ url_for('staff.requests', tab='Cancelled') }}">Cancelled</a>
   <a class="chip {{ 'active' if tab == 'Pending' }}" href="{{ url_for('staff.requests') }}">Pending ({{ n_pending }})</a>
   <a class="chip {{ 'active' if tab == 'Accepted' }}" href="{{ url_for('staff.requests', tab='Accepted') }}">Accepted</a>
   <a class="chip {{ 'active' if tab == 'Rejected' }}" href="{{ url_for('staff.requests', tab='Rejected') }}">Rejected</a>
@@ -18,7 +19,7 @@
       <tbody>
       {% for b in rows %}
         {% set url = url_for('staff.booking_details', booking_id=b.id) if b.status == 'Pending' else url_for('staff.order_details', booking_id=b.id) %}
-        {% if b.status == "Rejected" %}{% set url = url_for('staff.booking_details', booking_id=b.id) %}{% endif %}
+        {% if b.status in ("Rejected", "Cancelled") %}{% set url = url_for('staff.booking_details', booking_id=b.id) %}{% endif %}
         <tr data-href="{{ url }}">
           <td data-label="Customer"><strong>{{ b.customer_name }}</strong></td>
           <td data-label="Service">{{ b.service_name }}</td>
