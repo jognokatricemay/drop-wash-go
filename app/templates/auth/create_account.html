@@ -1,5 +1,5 @@
 {% extends "auth/base_auth.html" %} {# Figma: 02-create-account #} {% from
-"_macros.html" import field %} {% block title %}Create account{% endblock %} {%
+"_macros.html" import field, select %} {% block title %}Create account{% endblock %} {%
 block form %}
 <input type="hidden" name="next" value="{{ next }}" />
 <div class="stack" style="gap: 8px">
@@ -19,6 +19,8 @@ placeholder="Juan Dela Cruz") }}
   field("Confirm password", "confirm_password", type="password", errors=errors)
   }}
 </div>
+{{ select("Security question (for forgot password)", "security_question", question_options, form.get("security_question"), errors) }}
+{{ field("Your answer", "security_answer", form.get("security_answer", ""), errors=errors) }}
 <button class="btn btn-primary btn-block" type="submit">Create account</button>
 <div class="links">
   <a href="{{ url_for('auth.login', next=next) }}"
