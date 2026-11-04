@@ -115,10 +115,11 @@ legend { padding: 0; }
 .nav a:hover { background: rgba(255, 255, 255, .06); }
 .nav a.active { background: var(--nav-active-bg); color: var(--nav-active-txt); font-weight: 600; }
 .nav .icon { display: none; width: 24px; height: 24px; }
+a.brand-row { color: inherit; text-decoration: none; }
 .sidebar .user {
   margin-top: auto;
-  display: flex; flex-direction: column; gap: 14px;
-  padding: 20px 8px 0;
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px 8px 0;
   border-top: 1px solid var(--sidebar-divider);
 }
 .sidebar .user-name { font-size: 14px; font-weight: 600; }
@@ -626,9 +627,11 @@ select.input {
   /* Tables become stacked cards */
   .table thead { display: none; }
   .table, .table tbody, .table tr, .table td { display: block; width: 100%; }
-  .table tr { padding: 14px 0; border-bottom: 1px solid var(--line); }
+  .table tr { padding: 6px 0; border-bottom: 2px solid #c5cfdd; }
   .table tr:last-child { border-bottom: 0; }
-  .table td { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 4px 0; border: 0; text-align: right; }
+  /* a thin line under every field, so each row of the table is easy to follow */
+  .table td { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border: 0; border-bottom: 1px solid var(--border); text-align: right; }
+  .table td:last-child { border-bottom: 0; }
   .table td::before { content: attr(data-label); color: var(--muted); font-size: 13px; text-align: left; }
   .table td:first-child { font-weight: 600; font-size: 15px; }
   .table td.no-label::before { content: none; }

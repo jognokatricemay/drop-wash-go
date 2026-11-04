@@ -11,6 +11,7 @@
     <a class="chip {{ 'active' if tab == 'all' }}" href="{{ url_for('staff.orders', q=q or None) }}">All</a>
     <a class="chip {{ 'active' if tab == 'active' }}" href="{{ url_for('staff.orders', tab='active', q=q or None) }}">Active</a>
     <a class="chip {{ 'active' if tab == 'completed' }}" href="{{ url_for('staff.orders', tab='completed', q=q or None) }}">Completed</a>
+    <a class="chip {{ 'active' if tab == 'unpaid' }}" href="{{ url_for('staff.orders', tab='unpaid', q=q or None) }}">Not paid</a>
   </div>
   <span class="spacer"></span>
   <input class="search sm" type="search" name="q" value="{{ q }}" placeholder="Search Order ID or customer" aria-label="Search Order ID or customer">

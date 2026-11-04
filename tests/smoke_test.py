@@ -161,6 +161,15 @@ check("reject booking", r.status_code == 302)
 
 r = s.post(f"/shop/orders/{new_id}/weight", data={"actual_weight": "4.5"}, follow_redirects=True)
 check("confirm weight -> processing", "Processing" in r.get_data(as_text=True) and "₱207.50" in r.get_data(as_text=True))
+html = get(s, f"/shop/orders/{new_id}", contains="Update status").get_data(as_text=True)
+check("processing order: no Confirm weight button", "Confirm weight" not in html.split("Next step")[1].split("</section>")[0])
+r = s.post(f"/shop/orders/{new_id}/status", data={"status": "Completed"}, follow_redirects=True)
+check("status can't skip a step", "can&#39;t skip a step" in r.get_data(as_text=True) or "can't skip a step" in r.get_data(as_text=True))
+r = s.post(f"/shop/orders/{new_id}/status", data={"status": "Ready for Delivery"})
+check("Ready for Delivery needs a delivery schedule", "Choose a delivery date" in r.get_data(as_text=True)
+      and "Choose a delivery time" in r.get_data(as_text=True))
+get(s, f"/shop/orders/{new_id}/status", contains="Ready for Delivery")
+check("status page only offers the current and the next step", "Accepted" not in s.get(f"/shop/orders/{new_id}/status").get_data(as_text=True).split("radio-list")[1].split("</fieldset>")[0])
 r = s.post(f"/shop/orders/{new_id}/status", data={"status": "Ready for Delivery", "delivery_date": tomorrow,
                                                  "delivery_time": "15:30"}, follow_redirects=True)
 check("update status", "is now Ready for Delivery" in r.get_data(as_text=True))
@@ -173,6 +182,43 @@ r = s.post("/shop/shop-info", data={"name": "Mama Fe Laundry", "contact_number":
                                     "opening_hours": "8:00 AM - 8:00 PM", "offers_dropoff": "1", "offers_delivery": "1",
                                     "delivery_fee": "60", "accepts_cash": "1", "rate_1": "35", "next": "/shop/orders"})
 check("shop info saved and goes to next page", r.status_code == 302 and r.headers["Location"].endswith("/shop/orders"))
+
+# staff rules: weigh first, never go back, nothing to press on a completed order, payment reminder
+r = s.post("/shop/orders/483/status", data={"status": "Completed"}, follow_redirects=True)
+check("Accepted order: weight must be confirmed first", "Confirm the weight first" in r.get_data(as_text=True))
+get(s, "/shop/orders/483", contains="Confirm weight")
+r = s.post("/shop/orders/482/status", data={"status": "Processing"})
+check("status can't go back", "skip a step or go back" in r.get_data(as_text=True))
+r = s.post("/shop/orders/482/status", data={"status": "Completed"}, follow_redirects=True)
+html = r.get_data(as_text=True)
+check("completing an unpaid order reminds the staff", "is now Completed" in html and "not marked as paid" in html)
+side = html.split("Next step")[1]
+check("completed order: no Update status or Change weight button", "Update status" not in side and "Change weight" not in side)
+check("completed order: Mark as paid is still there", "Mark as paid" in side)
+r = s.post("/shop/orders/482/status", data={"status": "Ready for Delivery"}, follow_redirects=True)
+check("completed order can't change status", "can&#39;t be changed anymore" in r.get_data(as_text=True) or "can't be changed anymore" in r.get_data(as_text=True))
+r = s.post("/shop/orders/482/weight", data={"actual_weight": "9"}, follow_redirects=True)
+check("completed order: weight can't change", "can&#39;t be changed anymore" in r.get_data(as_text=True) or "can't be changed anymore" in r.get_data(as_text=True))
+get(s, "/shop/dashboard", contains="completed but not paid")
+get(s, "/shop/orders?tab=unpaid", contains="DWG-00482")
+
+# staff notifications (new request) and the customer's cancel after the shop accepted
+get(s, "/shop/notifications", contains="New booking request")
+check("staff has an unread dot", "nav-unread-dot" in s.get("/shop/dashboard").get_data(as_text=True))
+r = c.post("/orders/483/cancel")
+check("customer can cancel an Accepted booking", r.status_code == 302)
+with app.app_context():
+    row = query("SELECT status, order_code FROM bookings WHERE id=483", one=True)
+check("cancelled Accepted booking loses its Order ID", row["status"] == "Cancelled" and row["order_code"] is None)
+get(s, "/shop/notifications", contains="Booking cancelled")
+get(s, "/shop/requests?tab=Cancelled", contains="Juan")
+check("cancelled booking is not in the shop's orders", "483" not in s.get("/shop/orders").get_data(as_text=True))
+r = s.post("/shop/requests/483", data={"action": "accept", "confirmed_schedule": "10:00"})
+with app.app_context():
+    check("a cancelled booking can't be accepted", query("SELECT status FROM bookings WHERE id=483", one=True)["status"] == "Cancelled")
+r = s.post("/shop/notifications/read-all")
+check("staff can mark notifications as read", r.status_code == 302)
+check("customer can't open staff notifications", c.get("/shop/notifications").status_code == 302)
 
 # customer sees the updates
 r = c.get(f"/orders/{new_id}")
@@ -246,7 +292,7 @@ check("shop register: security question is required", "Choose a security questio
 with app.app_context():
     mine = query("SELECT id, status FROM bookings WHERE customer_id=1 ORDER BY id")
     pending = next(b["id"] for b in mine if b["status"] == "Pending")
-    not_pending = next(b["id"] for b in mine if b["status"] != "Pending")
+    not_pending = next(b["id"] for b in mine if b["status"] not in ("Pending", "Accepted"))
     before = query("SELECT status FROM bookings WHERE id=%s", [not_pending], one=True)["status"]
 r = c.post(f"/orders/{not_pending}/cancel")
 with app.app_context():

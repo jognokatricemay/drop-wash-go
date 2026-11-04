@@ -66,8 +66,9 @@
       </ol>
     {% endif %}
 
-    {% if b.status == "Pending" %}
-      <p class="muted small" style="margin-bottom: 16px;">Your Order ID is created once the shop accepts.</p>
+    {% if b.status in ("Pending", "Accepted") %}
+      {% if b.status == "Pending" %}<p class="muted small" style="margin-bottom: 16px;">Your Order ID is created once the shop accepts.</p>
+      {% else %}<p class="muted small" style="margin-bottom: 16px;">You can cancel until the shop starts processing your laundry.</p>{% endif %}
       
       <button type="button" class="btn btn-danger btn-block" onclick="document.getElementById('cancel-modal').showModal()">
         Cancel Booking

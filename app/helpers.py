@@ -93,6 +93,12 @@ def notify(user_id, booking_id, kind, title, body):
             [user_id, booking_id, kind, title, body])
 
 
+def notify_shop(shop_id, booking_id, kind, title, body):
+    """Tell every staff account of a shop (shops have one login today, but this works for more)."""
+    for staff in query("SELECT id FROM users WHERE role='staff' AND shop_id=%s", [shop_id]):
+        notify(staff["id"], booking_id, kind, title, body)
+
+
 # ---------- Template filters ----------
 
 def peso(value, decimals=None):
@@ -183,7 +189,7 @@ def init_app(app):
 
     @app.context_processor
     def unread_count():
-        if g.get("user") and g.user["role"] == "customer":
+        if g.get("user"):  # customers and shop staff both have notifications
             row = query("SELECT COUNT(*) AS n FROM notifications WHERE user_id=%s AND is_read=0",
                         [g.user["id"]], one=True)
             return {"unread": row["n"]}
