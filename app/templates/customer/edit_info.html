@@ -9,7 +9,7 @@
 {% block content %}
 {{ page_head("Edit personal information", back=("Back to Profile", url_for('customer.profile')), sub="Update your profile details below.") }}
 
-<form method="POST" id="edit-info-form" style="display: flex; flex-direction: column; gap: 20px;">
+<form method="POST" id="edit-info-form" novalidate style="display: flex; flex-direction: column; gap: 20px;">
   <div class="field-group">
     {{ field("Full name", "full_name", form.get("full_name", "") if form.get is defined else (form.full_name or ""), errors=errors, placeholder="Juan Dela Cruz") }}
   </div>
@@ -20,8 +20,9 @@
       <span id="mobile-error" class="error-text" style="display: none;"></span>
     </div>
 
-    <div class="field-group">
-      {{ field("Email (optional)", "email", form.get("email", "") if form.get is defined else (form.email or ""), type="email", errors=errors, placeholder="name@example.com") }}
+    <div class="field-group" style="display: flex; flex-direction: column;">
+      {{ field("Email (optional)", "email", form.get("email", "") if form.get is defined else (form.email or ""), type="text", errors=errors, placeholder="name@example.com") }}
+      <span id="email-error" class="error-text" style="display: none;"></span>
     </div>
   </div>
 
@@ -65,9 +66,10 @@
   }
 
   .error-text {
-    color: #dc2626;
+    color: #dc2626 !important;
     font-size: 0.85rem;
     margin-top: 6px;
+    display: block;
     line-height: 1.25;
   }
 </style>
@@ -84,6 +86,7 @@
     const mobileInput = document.querySelector("input[name='mobile']");
     const emailInput = document.querySelector("input[name='email']");
     const mobileError = document.getElementById("mobile-error");
+    const emailError = document.getElementById("email-error");
 
     if (!form || !modal) return;
 
@@ -107,6 +110,15 @@
       return "";
     }
 
+    function validateEmail(val) {
+      if (!val) return "";
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(val)) {
+        return "Please enter a valid email address.";
+      }
+      return "";
+    }
+
     function checkFormState() {
       const mobileVal = mobileInput ? mobileInput.value.trim() : "";
       const fullNameVal = fullNameInput ? fullNameInput.value.trim() : "";
@@ -118,11 +130,12 @@
 
       isDirty = hasChanges;
 
-      const errorMsg = validateMobile(mobileVal);
+      const mobileErr = validateMobile(mobileVal);
+      const emailErr = validateEmail(emailVal);
       
       if (mobileVal !== originalValues.mobile || mobileVal.length > 0) {
-        if (errorMsg) {
-          mobileError.textContent = errorMsg;
+        if (mobileErr) {
+          mobileError.textContent = mobileErr;
           mobileError.style.display = "block";
           if (mobileInput) mobileInput.style.borderColor = "#dc2626";
         } else {
@@ -134,7 +147,21 @@
         if (mobileInput) mobileInput.style.borderColor = "";
       }
 
-      const isValid = !errorMsg && fullNameVal.length > 0;
+      if (emailVal.length > 0) {
+        if (emailErr) {
+          emailError.textContent = emailErr;
+          emailError.style.display = "block";
+          if (emailInput) emailInput.style.borderColor = "#dc2626";
+        } else {
+          emailError.style.display = "none";
+          if (emailInput) emailInput.style.borderColor = "";
+        }
+      } else {
+        emailError.style.display = "none";
+        if (emailInput) emailInput.style.borderColor = "";
+      }
+
+      const isValid = !mobileErr && !emailErr && fullNameVal.length > 0;
 
       if (hasChanges && isValid) {
         saveButton.removeAttribute("disabled");
@@ -156,27 +183,37 @@
 
     form.addEventListener("submit", (e) => {
       const mobileVal = mobileInput ? mobileInput.value.trim() : "";
-      const errorMsg = validateMobile(mobileVal);
+      const emailVal = emailInput ? emailInput.value.trim() : "";
+      const mobileErr = validateMobile(mobileVal);
+      const emailErr = validateEmail(emailVal);
 
-      if (errorMsg) {
+      if (mobileErr || emailErr) {
         e.preventDefault();
-        mobileError.textContent = errorMsg;
-        mobileError.style.display = "block";
-        if (mobileInput) mobileInput.style.borderColor = "#dc2626";
+        if (mobileErr) {
+          mobileError.textContent = mobileErr;
+          mobileError.style.display = "block";
+          if (mobileInput) mobileInput.style.borderColor = "#dc2626";
+        }
+        if (emailErr) {
+          emailError.textContent = emailErr;
+          emailError.style.display = "block";
+          if (emailInput) emailInput.style.borderColor = "#dc2626";
+        }
         return;
       }
 
       isSubmitting = true;
     });
 
-    document.addEventListener("click", function(e) {
+    window.addEventListener("click", function(e) {
       const link = e.target.closest("a");
-      if (link && isDirty && !isSubmitting) {
+      if (link && link.href && !link.href.startsWith("javascript:") && !link.href.includes("#") && isDirty && !isSubmitting) {
         e.preventDefault();
+        e.stopPropagation();
         targetUrl = link.href;
         modal.showModal();
       }
-    });
+    }, true);
 
     cancelDiscardBtn.addEventListener("click", () => {
       modal.close();
