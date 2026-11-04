@@ -191,5 +191,9 @@ def init_app(app):
 
     @app.errorhandler(404)
     def not_found(_e):
+        # Browsers also ask for files by themselves (favicon.ico, robots.txt ...). Answer those quietly,
+        # or the message below would be saved and then show up on the next page the person opens.
+        if "." in request.path.rsplit("/", 1)[-1]:
+            return "", 404
         flash("That page doesn't exist.")
         return redirect(url_for("auth.welcome"))
