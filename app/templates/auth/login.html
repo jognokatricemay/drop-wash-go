@@ -19,6 +19,7 @@ type="tel", placeholder="09171234567") }} {{ field("Password", "password",
 type="password", placeholder="Enter password") }}
 <button class="btn btn-primary btn-block" type="submit">Login</button>
 <div class="links">
+  <a class="plain" href="{{ url_for('auth.forgot_customer') }}">Forgot password?</a>
   <a class="plain" href="{{ url_for('auth.create_account', next=next) }}"
     >Don't have an account? <b>Sign up</b></a
   >
