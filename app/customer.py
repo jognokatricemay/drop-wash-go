@@ -81,7 +81,7 @@ def slot_error(shop, when, slot):
     hours = parse_hours(shop["opening_hours"])
     if hours:   
         opens, closes = hours
-        if when == date.today() and datetime.now().time() >= closes:
+        if when == today_ph() and now_ph().time() >= closes:
             return "This shop is already closed for today. Please choose another date."
         if start < opens or end > closes:
             return (f"This shop is open from {opens:%I:%M %p} to {closes:%I:%M %p}. "
@@ -99,7 +99,7 @@ def validate_booking(shop, form, offered):
 
     handling = form.get("handling")
     if handling not in offered:
-        errors["handling"] = "This shop doesn't offer that option."
+        errors["handling"] = "This shop doesn't offer the selected option."
 
     try:
         weight = Decimal(form.get("est_weight", "").strip())
