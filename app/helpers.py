@@ -1,4 +1,5 @@
 """Shared helpers: who is logged in, role checks, prices and template filters."""
+import re
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from functools import wraps
@@ -110,9 +111,70 @@ def short_date(d):
     return f"{d:%b} {d.day}" if d else ""
 
 
+def time_input_value(value):
+    """Return a value supported by an HTML time input, including legacy time ranges."""
+    value = str(value or "").strip()
+    if re.fullmatch(r"\d{2}:\d{2}", value):
+        try:
+            datetime.strptime(value, "%H:%M")
+            return value
+        except ValueError:
+            return ""
+
+    match = re.fullmatch(
+        r"(\d{1,2})(?::(\d{2}))?\s*-\s*(\d{1,2})(?::(\d{2}))?\s*(AM|PM)",
+        value,
+        re.IGNORECASE,
+    )
+    if not match:
+        return ""
+    start_hour = int(match.group(1))
+    start_minute = int(match.group(2) or 0)
+    end_hour = int(match.group(3))
+    end_minute = int(match.group(4) or 0)
+    meridiem = match.group(5).upper()
+    if not 1 <= start_hour <= 12 or not 1 <= end_hour <= 12 or start_minute > 59 or end_minute > 59:
+        return ""
+
+    start_hour %= 12
+    end_hour %= 12
+    if meridiem == "PM":
+        start_hour += 12
+        end_hour += 12
+    if start_hour > end_hour:
+        start_hour += -12 if meridiem == "PM" else 12
+    return f"{start_hour:02d}:{start_minute:02d}"
+
+
+def time_label(value):
+    """Format stored HH:MM values for display while preserving legacy range labels."""
+    value = str(value or "").strip()
+    if not re.fullmatch(r"\d{2}:\d{2}", value):
+        return value
+    try:
+        parsed = datetime.strptime(value, "%H:%M")
+    except ValueError:
+        return value
+    hour = parsed.hour % 12 or 12
+    meridiem = "AM" if parsed.hour < 12 else "PM"
+    return f"{hour}:{parsed.minute:02d} {meridiem}"
+
+
+def schedule_label(value):
+    """Format new ISO delivery schedules while leaving older free-text schedules readable."""
+    value = str(value or "").strip()
+    try:
+        scheduled = datetime.strptime(value, "%Y-%m-%dT%H:%M")
+    except ValueError:
+        return value
+    return f"{short_date(scheduled.date())} · {time_label(scheduled.strftime('%H:%M'))}"
+
+
 def init_app(app):
     app.before_request(load_user)
     app.jinja_env.filters.update(peso=peso, kg=kg, short_date=short_date,
+                                 time_label=time_label, time_input=time_input_value,
+                                 schedule_label=schedule_label,
                                  pill=lambda s: PILL.get(s, "completed"),
                                  handling=lambda h: HANDLING.get(h, h))
     app.jinja_env.globals.update(order_label=order_label, booking_price=booking_price,

@@ -2,14 +2,17 @@
 Owners:  Member 5 — dashboard, booking requests, accept / reject, Order ID
          Member 6 — orders, confirm weight, update status, mark as paid, shop info, profile
 """
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
 from .db import execute, query
-from .helpers import BOOKING_SQL, booking_price, login_required, notify, peso
+from .helpers import BOOKING_SQL, booking_price, login_required, notify, peso, schedule_label, time_input_value, time_label, today_ph
 
 bp = Blueprint("staff", __name__, url_prefix="/shop")
+
+SHOP_ORDER_PREFIXES = {"clean & fresh": "CNF"}
 
 STATUSES = [
     ("Accepted", ""),
@@ -18,6 +21,17 @@ STATUSES = [
     ("Ready for Delivery", "Rider will bring it to the customer"),
     ("Completed", "Laundry received by the customer"),
 ]
+
+TODAY_PICKUP_STATUSES = ("Pending", "Accepted", "Processing")
+
+
+def order_code(shop_name, booking_id):
+    normalized_name = " ".join(shop_name.casefold().split())
+    prefix = SHOP_ORDER_PREFIXES.get(normalized_name)
+    if prefix is None:
+        words = ["".join(char for char in word if char.isalnum()) for word in shop_name.split()]
+        prefix = "".join(word[0] for word in words if word).upper()
+    return f"{prefix}-{booking_id:05d}"
 
 
 def shop_booking(booking_id):
@@ -33,11 +47,30 @@ def shop_booking(booking_id):
 @login_required("staff")
 def dashboard():
     sid = g.shop["id"]
+    today = today_ph().isoformat()
     counts = {r["status"]: r["n"] for r in query(
         "SELECT status, COUNT(*) AS n FROM bookings WHERE shop_id=%s GROUP BY status", [sid])}
     active = query(BOOKING_SQL + """ WHERE b.shop_id=%s AND b.order_code IS NOT NULL
                    AND b.status NOT IN ('Completed','Rejected') ORDER BY b.updated_at DESC LIMIT 6""", [sid])
-    return render_template("staff/dashboard.html", counts=counts, active_orders=active)
+    today_pickup_count = query(
+        """SELECT COUNT(*) AS n FROM bookings
+           WHERE shop_id=%s AND requested_date=%s AND handling IN ('pickup','pickup-delivery')
+           AND status IN %s""",
+        [sid, today, TODAY_PICKUP_STATUSES], one=True,
+    )["n"]
+    return render_template("staff/dashboard.html", counts=counts, active_orders=active,
+                           today_pickup_count=today_pickup_count)
+
+
+@bp.route("/pickups/today")
+@login_required("staff")
+def today_pickups():
+    today = today_ph().isoformat()
+    rows = query(BOOKING_SQL + """ WHERE b.shop_id=%s AND b.requested_date=%s
+                      AND b.handling IN ('pickup','pickup-delivery') AND b.status IN %s
+                      ORDER BY b.requested_time, b.id""",
+                 [g.shop["id"], today, TODAY_PICKUP_STATUSES])
+    return render_template("staff/today_pickups.html", rows=rows, today=today_ph())
 
 
 @bp.route("/requests")
@@ -58,8 +91,8 @@ def requests():
 def booking_details(booking_id):
     b = shop_booking(booking_id)
     errors = {}
+    confirmed_time = request.form.get("confirmed_schedule", "").strip() if request.method == "POST" else b["requested_time"]
     if request.method == "POST" and b["status"] == "Pending":
-        schedule = request.form.get("confirmed_schedule", "").strip() or b["requested_time"]
         if request.form.get("action") == "reject":
             reason = request.form.get("reason", "").strip()
             if not reason:
@@ -70,15 +103,19 @@ def booking_details(booking_id):
                 flash(f"Booking from {b['customer_name']} was rejected.")
                 return redirect(url_for("staff.requests"))
         else:
-            # FR-05: the Order ID is created only when the booking is accepted
-            code = f"DWG-{b['id']:05d}"
-            execute("UPDATE bookings SET status='Accepted', order_code=%s, confirmed_schedule=%s WHERE id=%s",
-                    [code, schedule, b["id"]])
-            what = "Drop-off" if b["handling"] == "drop-off" else "Pickup"
-            notify(b["customer_id"], b["id"], "success", "Booking accepted",
-                   f"#{code} · {what} confirmed {b['requested_date']:%b} {b['requested_date'].day}, {schedule}")
-            return redirect(url_for("staff.booking_accepted", booking_id=b["id"]))
-    return render_template("staff/booking_details.html", b=b, price=booking_price(b), errors=errors)
+            if not time_input_value(confirmed_time) or confirmed_time != time_input_value(confirmed_time):
+                errors["confirmed_schedule"] = "Choose a time."
+            else:
+                # FR-05: the Order ID is created only when the booking is accepted
+                code = order_code(b["shop_name"], b["id"])
+                execute("UPDATE bookings SET status='Accepted', order_code=%s, confirmed_schedule=%s WHERE id=%s",
+                        [code, confirmed_time, b["id"]])
+                what = "Drop-off" if b["handling"] == "drop-off" else "Pickup"
+                notify(b["customer_id"], b["id"], "success", "Booking accepted",
+                       f"#{code} · {what} confirmed {b['requested_date']:%b} {b['requested_date'].day}, {time_label(confirmed_time)}")
+                return redirect(url_for("staff.booking_accepted", booking_id=b["id"]))
+    return render_template("staff/booking_details.html", b=b, price=booking_price(b), errors=errors,
+                           confirmed_time=confirmed_time)
 
 
 @bp.route("/requests/<int:booking_id>/accepted")
@@ -142,21 +179,48 @@ def confirm_weight(booking_id):
 @login_required("staff")
 def update_status(booking_id):
     b = shop_booking(booking_id)
+    errors = {}
+    selected_status = request.form.get("status", b["status"]) if request.method == "POST" else b["status"]
+    form_date = request.form.get("delivery_date", "").strip() if request.method == "POST" else ""
+    form_time = request.form.get("delivery_time", "").strip() if request.method == "POST" else ""
+    existing_schedule = b["delivery_schedule"] or ""
+    if request.method == "GET" and existing_schedule:
+        try:
+            scheduled = datetime.strptime(existing_schedule, "%Y-%m-%dT%H:%M")
+            form_date = scheduled.date().isoformat()
+            form_time = scheduled.strftime("%H:%M")
+        except ValueError:
+            pass
+
     if request.method == "POST":
         status = request.form.get("status")
         if status not in [s for s, _ in STATUSES]:
+            errors["status"] = "Choose a status."
             flash("Choose a status.")
-        else:
-            schedule = request.form.get("delivery_schedule", "").strip() or None
+        schedule = None
+        if form_date or form_time:
+            try:
+                scheduled_date = datetime.strptime(form_date, "%Y-%m-%d").date()
+                if scheduled_date < today_ph():
+                    errors["delivery_date"] = "Choose today or a later date."
+            except ValueError:
+                errors["delivery_date"] = "Choose a date."
+            if not form_time or form_time != time_input_value(form_time):
+                errors["delivery_time"] = "Choose a time."
+            if not errors:
+                schedule = f"{form_date}T{form_time}"
+        if not errors:
             execute("UPDATE bookings SET status=%s, delivery_schedule=COALESCE(%s, delivery_schedule) WHERE id=%s",
                     [status, schedule, b["id"]])
             if status != b["status"]:
                 kind = "delivery" if status.startswith("Ready") else "info"
-                body = f"#{b['order_code']}" + (f" · {schedule}" if schedule else "")
+                body = f"#{b['order_code']}" + (f" · {schedule_label(schedule)}" if schedule else "")
                 notify(b["customer_id"], b["id"], kind, status if status != "Processing" else "Your laundry is being processed", body)
             flash(f"#{b['order_code']} is now {status}.")
             return redirect(url_for("staff.order_details", booking_id=b["id"]))
-    return render_template("staff/update_status.html", b=b, price=booking_price(b), statuses=STATUSES)
+    return render_template("staff/update_status.html", b=b, price=booking_price(b), statuses=STATUSES,
+                           errors=errors, selected_status=selected_status, form_date=form_date, form_time=form_time,
+                           existing_schedule=existing_schedule)
 
 
 @bp.route("/orders/<int:booking_id>/paid", methods=["GET", "POST"])

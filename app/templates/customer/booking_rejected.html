@@ -17,7 +17,7 @@
       {{ row("Shop", b.shop_name) }}
       {{ row("Service", b.service_name) }}
       {{ row("Handling", b.handling|handling) }}
-      {{ row("Requested", b.requested_date|short_date ~ " · " ~ b.requested_time) }}
+      {{ row("Requested", b.requested_date|short_date ~ " · " ~ (b.requested_time|time_label)) }}
     </section>
   </div>
   <div class="stack">

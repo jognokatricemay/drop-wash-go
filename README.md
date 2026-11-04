@@ -77,8 +77,9 @@ Run this before every pull request. It resets the database to the sample data.
 
 ## 2. How the app works
 
-- **Booking → Order.** A customer submits a booking, and it is saved as `Pending`. When the shop **accepts** it, the app creates the Order ID (`DWG-00488`, …) (FR-05). If the shop rejects it, the customer sees the reason.
+- **Booking → Order.** A customer chooses a date and a specific time using the browser's type-or-scroll time picker, then submits a booking that is saved as `Pending`. Staff can confirm a time the same way. When the shop **accepts** it, the app creates a shop-prefixed Order ID (for example, `MFL-00488`, `CNF-00489`, or `WH-00490`) (FR-05). If the shop rejects it, the customer sees the reason.
 - **Prices.** `rate × weight` + delivery fee (Pickup & Delivery only). The estimate uses the customer's weight. After **Confirm weight**, the actual weight is used. Rates and fees are copied into the booking, so changing Shop info only affects new bookings.
+- **Delivery schedule.** Staff choose the delivery or ready-for-pickup date and time using calendar and time inputs. Customers see the formatted schedule on their order.
 - **Payment** happens outside the app (cash or GCash to the shop). Staff only record it with **Mark as paid**.
 - **Notifications** are created when a booking is accepted or rejected, the weight is confirmed, or the status changes.
 - **Roles.** `@login_required("customer")` / `@login_required("staff")` protect every page. Staff only see their own shop's bookings.
@@ -136,7 +137,7 @@ Only **Member 1** changes `app/__init__.py`, `base.html` and `helpers.py`; ask t
 | 2 | Database + testing | `schema.sql`, `seed.py`, `db.py`, `tests/` | More realistic sample data, run the smoke test on every pull request, test on real phones, write the test results for the paper |
 | 3 | Customer: booking | `customer.py` (shops → request sent), `templates/customer/shops, shop_details, book, review, request_sent` | Server-side shop search/filter, block booking past closing time, clearer messages |
 | 4 | Customer: tracking | `customer.py` (home, orders, notifications, profile), `templates/customer/...` | **Edit personal info**, **saved address** pages, cancel a Pending booking |
-| 5 | Staff: bookings | `staff.py` (dashboard, requests, accept/reject), `templates/staff/dashboard, requests, booking_details, booking_accepted` | Change the requested date (not just time), show today's pickups on the dashboard |
+| 5 | Staff: bookings | `staff.py` (dashboard, requests, accept/reject), `templates/staff/dashboard, requests, booking_details, booking_accepted, today_pickups` | Change the requested date (not just time) |
 | 6 | Staff: orders + shop | `staff.py` (orders, weight, status, paid, shop info, profile), `templates/staff/...` | **"+ Add service"** form, **change password**, remove a service |
 
 Search the code for `TODO (Member N)` to find each person's spots.
