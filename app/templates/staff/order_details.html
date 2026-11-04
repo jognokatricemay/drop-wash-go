@@ -31,6 +31,17 @@
       {% else %}
         {{ row("How the customer pays", ("On delivery" if delivers else "At the counter") ~ " · " ~ payment_methods(b)) }}
         <p class="muted small">Collect payment {{ "when you deliver" if delivers else "when the customer picks it up" }}, then use Mark as paid.</p>
+        
+        <!-- TASK 8: Ilabas ang GCash details kapag confirmed weight na at may GCash -->
+        {% if not price.estimated and g.shop.accepts_gcash and g.shop.gcash_number %}
+        <div style="background: var(--bg-soft, #f8f9fa); padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-top: 10px;">
+          <p style="margin: 0 0 8px 0; font-weight: 500;">GCash Details for Customer Payment:</p>
+          <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.9em;">
+            <span><strong>Number:</strong> {{ g.shop.gcash_number }}</span>
+            {% if g.shop.gcash_name %}<span><strong>Name:</strong> {{ g.shop.gcash_name }}</span>{% endif %}
+          </div>
+        </div>
+        {% endif %}
       {% endif %}
     </section>
   </div>
@@ -64,19 +75,23 @@
       </div>
       <button class="icon-btn" type="button" data-cancel aria-label="Close">×</button>
     </div>
+    
     <div class="field">
       <label for="actual_weight">Actual weight ({{ b.unit }})</label>
       
-      <!-- Pinalitan to step="1" min="1" instead of 0.1, added invalid check formatting if flash error exists -->
-      {{ input("actual_weight", start|kg, "number", extra='min="1" step="1" required' ~ (' class="invalid"' if weight_error else '')) }}
+      <!-- TASK 7: Naglagay ng style/class para red border kapag may error -->
+      {{ input("actual_weight", start|kg, "number", extra='min="1" step="1" required' ~ (' style="border-color: var(--danger, #dc3545);"' if weight_error else '')) }}
       
-      <!-- Red error messaging katulad sa login -->
+      <!-- TASK 7: RED TEXT ang validation -->
       {% if weight_error %}
-        <div style="color:var(--danger); font-size: 13px; margin-top: 4px;">{{ weight_error }}</div>
+        <div style="color: var(--danger, #dc3545); font-size: 0.875rem; margin-top: 4px; font-weight: 500;">
+          {{ weight_error }}
+        </div>
       {% endif %}
       
       <span class="muted small">Booking estimate: {{ b.est_weight|kg }} {{ b.unit }}</span>
     </div>
+
     <hr class="divider">
     <div class="row"><span>Laundry ({{ b.rate|peso }} x <span data-w="kg">{{ start|kg }}</span> {{ b.unit }})</span><span data-w="laundry">{{ (b.rate * start)|peso(2) }}</span></div>
     {% if delivers %}<div class="row"><span>Delivery fee (fixed)</span><span>{{ price.fee|peso }}</span></div>{% endif %}

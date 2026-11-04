@@ -208,48 +208,23 @@ def shop_info():
 
         # TASK: Remove service
         if "delete_service_id" in f:
-            # Check muna kung ilan ang service, bawal burahin kapag isa na lang
             count = query("SELECT COUNT(*) as c FROM services WHERE shop_id=%s", [shop["id"]], one=True)["c"]
             if count <= 1:
                 flash("Cannot remove. Your shop must have at least one service.")
             else:
                 try:
-                    # Siguraduhing sa mismong shop niya idedelete
                     execute("DELETE FROM services WHERE id=%s AND shop_id=%s", [f["delete_service_id"], shop["id"]])
                     flash("Service removed.")
                 except Exception:
                     flash("Cannot remove a service that is currently used in bookings.")
             return redirect(url_for("staff.shop_info"))
 
-        try:
-            fee = Decimal((f.get("delivery_fee") or "0").replace("₱", "").replace(",", ""))
-        except InvalidOperation:
-            fee = shop["delivery_fee"]
+        # TASK: Add service
+        elif "add_new_service" in f:
+            new_name = f.get("new_service_name", "").strip()
+            new_rate = f.get("new_service_rate", "").strip()
+            new_unit = f.get("new_service_unit", "kg").strip()
             
-        execute("""UPDATE shops SET name=%s, contact_number=%s, address=%s, opening_hours=%s,
-                   offers_dropoff=%s, offers_pickup=%s, offers_delivery=%s, delivery_fee=%s,
-                   accepts_cash=%s, accepts_gcash=%s, gcash_number=%s, gcash_name=%s WHERE id=%s""",
-                [f.get("name", shop["name"]).strip() or shop["name"], f.get("contact_number", "").strip(),
-                 f.get("address", "").strip(), f.get("opening_hours", "").strip(),
-                 "offers_dropoff" in f, "offers_pickup" in f, "offers_delivery" in f, fee,
-                 "accepts_cash" in f, "accepts_gcash" in f, f.get("gcash_number", "").strip() or None,
-                 f.get("gcash_name", "").strip() or None, shop["id"]])
-                 
-        for svc in query("SELECT id FROM services WHERE shop_id=%s", [shop["id"]]):
-            rate = f.get(f"rate_{svc['id']}")
-            if rate:
-                try:
-                    execute("UPDATE services SET rate=%s WHERE id=%s", [Decimal(rate), svc["id"]])
-                except InvalidOperation:
-                    pass
-
-        # TASK: "+ Add service"
-        new_name = f.get("new_service_name", "").strip()
-        new_rate = f.get("new_service_rate", "").strip()
-        new_unit = f.get("new_service_unit", "kg").strip()
-        
-        # Validations para sa pag-add
-        if new_name or new_rate:
             if not new_name:
                 flash("Service name cannot be empty.")
             elif not new_rate:
@@ -260,7 +235,6 @@ def shop_info():
                     if rate_val <= 0:
                         flash("Service rate must be greater than 0.")
                     else:
-                        # Check duplicate name sa iisang shop
                         existing = query("SELECT id FROM services WHERE shop_id=%s AND LOWER(name)=LOWER(%s)", [shop["id"], new_name])
                         if existing:
                             flash(f"A service named '{new_name}' already exists.")
@@ -270,11 +244,35 @@ def shop_info():
                             flash(f"Service '{new_name}' added successfully.")
                 except InvalidOperation:
                     flash("Invalid rate format.")
-        else:
-            flash("Shop changes saved. They apply to new bookings only.")
+            return redirect(url_for("staff.shop_info"))
 
-        nxt = f.get("next", "")
-        return redirect(nxt if nxt.startswith("/") and not nxt.startswith("//") else url_for("staff.shop_info"))
+        # KUNG "SAVE CHANGES" (Main form update)
+        else:
+            try:
+                fee = Decimal((f.get("delivery_fee") or "0").replace("₱", "").replace(",", ""))
+            except InvalidOperation:
+                fee = shop["delivery_fee"]
+                
+            execute("""UPDATE shops SET name=%s, contact_number=%s, address=%s, opening_hours=%s,
+                       offers_dropoff=%s, offers_pickup=%s, offers_delivery=%s, delivery_fee=%s,
+                       accepts_cash=%s, accepts_gcash=%s, gcash_number=%s, gcash_name=%s WHERE id=%s""",
+                    [f.get("name", shop["name"]).strip() or shop["name"], f.get("contact_number", "").strip(),
+                     f.get("address", "").strip(), f.get("opening_hours", "").strip(),
+                     "offers_dropoff" in f, "offers_pickup" in f, "offers_delivery" in f, fee,
+                     "accepts_cash" in f, "accepts_gcash" in f, f.get("gcash_number", "").strip() or None,
+                     f.get("gcash_name", "").strip() or None, shop["id"]])
+                     
+            for svc in query("SELECT id FROM services WHERE shop_id=%s", [shop["id"]]):
+                rate = f.get(f"rate_{svc['id']}")
+                if rate:
+                    try:
+                        execute("UPDATE services SET rate=%s WHERE id=%s", [Decimal(rate), svc["id"]])
+                    except InvalidOperation:
+                        pass
+            
+            flash("Shop changes saved. They apply to new bookings only.")
+            nxt = f.get("next", "")
+            return redirect(nxt if nxt.startswith("/") and not nxt.startswith("//") else url_for("staff.shop_info"))
     
     services = query("SELECT * FROM services WHERE shop_id=%s ORDER BY id", [shop["id"]])
     return render_template("staff/shop_info.html", shop=shop, services=services)
