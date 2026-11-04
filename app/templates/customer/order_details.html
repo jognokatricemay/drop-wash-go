@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{#- Figma: 12-order-details.  Owner: Member 4 -#}
+{% from "_macros.html" import page_head, row, pill %}
+{% set role = "customer" %}{% set active = "My orders" %}
+{% block title %}{{ order_label(b) }}{% endblock %}
+{% block content %}
+{% set delivers = b.handling == "pickup-delivery" %}
+{{ page_head(order_label(b), b.shop_name ~ " · " ~ b.service_name, back=("My orders", url_for('customer.my_orders')), pill_status=b.status) }}
+<div class="cols">
+  <div class="stack">
+    <section class="card">
+      <h2>Schedule &amp; address</h2>
+      {% set when = b.requested_date|short_date ~ " · " ~ (b.confirmed_schedule or b.requested_time) %}
+      {{ row(("Confirmed " if b.confirmed_schedule else "Requested ") ~ ("drop-off" if b.handling == "drop-off" else "pickup"), when) }}
+      {% if b.delivery_schedule %}{{ row("Delivery (set by shop)" if delivers else "Ready for pickup (set by shop)", b.delivery_schedule) }}{% endif %}
+      {% if b.address %}{{ row("Address", b.address) }}{% else %}{{ row("Shop address", b.shop_address) }}{% endif %}
+      {% if b.notes %}<div class="notes"><span>Special instructions</span><span>{{ b.notes }}</span></div>{% endif %}
+    </section>
+    <section class="card">
+      <h2>Price</h2>
+      {{ row("Laundry (" ~ ("actual " if not price.estimated else "est. ") ~ price.weight|kg ~ " " ~ b.unit ~ ")", price.laundry|peso(2)) }}
+      {% if delivers %}{{ row("Delivery fee", price.fee|peso) }}{% endif %}
+      <hr class="divider">
+      {{ row("Estimated total" if price.estimated else "Total", price.total|peso(2), "total") }}
+      {% if price.estimated %}<p class="muted small">The final price is set when the shop weighs your laundry.</p>{% endif %}
+    </section>
+    {% if b.status != "Pending" %}
+    <section class="card gap-12">
+      <div class="card-head"><h2>Payment</h2>{{ pill(b.payment_status) }}</div>
+      {% if b.payment_status == "Paid" %}
+        <p class="bold brand-txt">Paid · {{ price.total|peso(2) }}{{ " (" ~ ("GCash" if b.payment_method == "gcash" else "Cash") ~ ")" if b.payment_method }}</p>
+      {% else %}
+        <p class="bold brand-txt">{{ "Pay on delivery" if delivers else "Pay at the counter" }} · {{ price.total|peso(2) }}</p>
+        <p class="text-14">{{ "Pay the rider when your laundry arrives" if delivers else "Pay when you collect at " ~ b.shop_name }}{{ " on " ~ b.delivery_schedule if b.delivery_schedule }}.
+          {% if b.accepts_gcash and b.gcash_number %}Cash or GCash to {{ b.gcash_number }} ({{ b.gcash_name }}).{% else %}Cash only.{% endif %}</p>
+        <p class="muted small">The shop marks this order as Paid once they receive your payment.</p>
+      {% endif %}
+    </section>
+    {% endif %}
+  </div>
+  <section class="card">
+    <h2>Status</h2>
+    <ol class="timeline">
+      {% for s in steps %}
+      <li class="{{ 'current' if loop.index0 == current and s != 'Completed' else ('todo' if loop.index0 > current else '') }}">
+        <span class="dot"></span>{{ s }}</li>
+      {% endfor %}
+    </ol>
+    {% if b.status == "Pending" %}<p class="muted small">Your Order ID is created once the shop accepts.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

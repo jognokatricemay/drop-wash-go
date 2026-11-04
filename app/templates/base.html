@@ -1,0 +1,86 @@
+{#- App shell for logged-in pages (and guest browsing).
+    Each page sets  role = "customer" or "staff"  and  active = "Home"  then fills the content block.
+    Optional: the modals block, guest = true, center = true. -#}
+{% from "_icons.html" import icon, logo %}
+{%- set NAV = {
+  "customer": [
+    ("Home", "Home", url_for("customer.home"), "home"),
+    ("Find a shop", "Shops", url_for("customer.shops"), "grid"),
+    ("My orders", "Orders", url_for("customer.my_orders"), "bag"),
+    ("Notifications", "Alerts", url_for("customer.notifications"), "bell"),
+    ("Profile", "Profile", url_for("customer.profile"), "user"),
+  ],
+  "staff": [
+    ("Dashboard", "Home", url_for("staff.dashboard"), "home"),
+    ("Booking requests", "Requests", url_for("staff.requests"), "calendar"),
+    ("Orders", "Orders", url_for("staff.orders"), "clipboard"),
+    ("Shop info", "Shop", url_for("staff.shop_info"), "grid"),
+    ("Profile", "Profile", url_for("staff.profile"), "user"),
+  ],
+} -%}
+{%- set guest = guest or not g.user -%}
+{%- set initials = (g.user.full_name.split()[0][0] ~ g.user.full_name.split()[-1][0]) if g.user and role == "customer"
+                   else ((g.shop.name.replace("&", " ").split()[:2]|map("first")|join) if g.shop else "") -%}
+{%- macro navlink(label, text, href, ic) -%}
+<a href="{{ href }}" class="{{ 'active' if label == active }}" aria-current="{{ 'page' if label == active else 'false' }}">{{ icon(ic) }}{{ text }}</a>
+{%- endmacro -%}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block title %}{% endblock %} · Drop, Wash, Go</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<script src="{{ url_for('static', filename='js/app.js') }}" defer></script>
+</head>
+<body class="{{ role }}">
+<header class="topbar">
+  <div class="brand-row">{{ logo() }}<div><div class="brand-name">Drop, Wash, Go</div></div></div>
+  {% if guest %}
+    <a class="btn btn-primary" href="{{ url_for('auth.login') }}">Log in</a>
+  {% else %}
+    <a class="avatar" href="{{ url_for(role ~ '.profile') }}" aria-label="Profile">{{ initials|upper }}</a>
+  {% endif %}
+</header>
+<div class="app">
+<aside class="sidebar">
+  <div class="brand-row">{{ logo() }}<div><div class="brand-name">Drop, Wash, Go</div>{% if role == "staff" %}<div class="brand-tag">SHOP</div>{% endif %}</div></div>
+  {% if guest %}
+    <nav class="nav"><a class="active" href="{{ url_for('customer.shops') }}">{{ icon("grid") }}Find a shop</a></nav>
+    <div class="guest-actions">
+      <p>Browsing as a guest</p>
+      <a class="btn btn-primary" href="{{ url_for('auth.login') }}">Log in</a>
+      <a class="btn btn-outline" href="{{ url_for('auth.create_account') }}">Create account</a>
+    </div>
+  {% else %}
+    <nav class="nav">
+      {% for label, short, href, ic in NAV[role] %}{{ navlink(label, label, href, ic) }}{% endfor %}
+    </nav>
+    <div class="user">
+      <div class="brand-row"><span class="avatar">{{ initials|upper }}</span>
+        <div><div class="user-name">{{ g.shop.name if role == "staff" else g.user.full_name }}</div>
+             <div class="user-sub">{{ g.user.username if role == "staff" else "Customer" }}</div></div></div>
+      <a class="logout" href="{{ url_for('auth.logout') }}">Log out</a>
+    </div>
+  {% endif %}
+</aside>
+<main class="main{{ ' center' if center }}{{ ' no-bottomnav' if guest }}">
+  {% if center %}{% block center %}{% endblock %}{% else %}
+  <div class="main-inner">
+    {% with messages = get_flashed_messages() %}{% for m in messages %}<p class="note" role="status">{{ m }}</p>{% endfor %}{% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+  {% endif %}
+</main>
+</div>
+{% if not guest %}
+<nav class="bottomnav" aria-label="Main">
+  {% for label, short, href, ic in NAV[role] %}{{ navlink(label, short, href, ic) }}{% endfor %}
+</nav>
+{% endif %}
+{% block modals %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,34 @@
+{% extends "auth/base_auth.html" %} {# Figma: 01-welcome-choose-role #} {% block
+title %}Welcome{% endblock %} {% block form_attrs %}id="role-form"
+data-customer-url="{{ url_for('auth.create_account') }}" data-shop-url="{{
+url_for('auth.staff_register') }}"{% endblock %} {% block form %}
+<div class="stack" style="gap: 8px">
+  <h1>How will you use Drop, Wash, Go?</h1>
+  <p class="muted">Choose one to get started.</p>
+</div>
+<label class="radio-row role-option">
+  <input type="radio" name="role" value="customer" checked />
+  <span class="circle">C</span>
+  <span
+    ><span class="rr-title">I'm a customer</span><br /><span
+      class="rr-sub muted"
+      >Find shops, book laundry, track orders</span
+    ></span
+  >
+</label>
+<label class="radio-row role-option">
+  <input type="radio" name="role" value="shop" />
+  <span class="circle">S</span>
+  <span
+    ><span class="rr-title">I own a laundry shop</span><br /><span
+      class="rr-sub muted"
+      >Receive bookings and manage orders</span
+    ></span
+  >
+</label>
+<button class="btn btn-primary btn-block" type="submit">Continue</button>
+<div class="links">
+  <a href="{{ url_for('customer.shops') }}">Browse shops without an account</a>
+  <a href="{{ url_for('auth.login') }}">Already have an account? Login</a>
+</div>
+{% endblock %}

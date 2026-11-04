@@ -1,0 +1,38 @@
+{% extends "auth/base_auth.html" %} {# Figma: 03-login, and 03a-login-to-book
+when booking_shop is set #} {% from "_macros.html" import field %} {% block
+title %}{{ "Log in to book" if booking_shop else "Login" }}{% endblock %} {%
+block form %}
+<input type="hidden" name="next" value="{{ next }}" />
+<div class="stack" style="gap: 8px">
+  {% if booking_shop %}
+  <h1>Log in to book</h1>
+  <p class="muted">Log in to book at {{ booking_shop.name }}.</p>
+  {% else %}
+  <h1>Welcome back</h1>
+  <p class="muted">Find a shop, book, and track your laundry.</p>
+  {% endif %}
+</div>
+{% if errors.login %}
+<p class="note error" role="alert">{{ errors.login }}</p>
+{% endif %} {{ field("Mobile number", "mobile", form.get("mobile", ""),
+type="tel", placeholder="09171234567") }} {{ field("Password", "password",
+type="password", placeholder="Enter password") }}
+<button class="btn btn-primary btn-block" type="submit">Login</button>
+<div class="links">
+  <a class="plain" href="{{ url_for('auth.create_account', next=next) }}"
+    >Don't have an account? <b>Sign up</b></a
+  >
+  {% if booking_shop %}
+  <a
+    class="plain"
+    href="{{ url_for('customer.shop_details', shop_id=booking_shop.id) }}"
+    >‹&nbsp; Back to {{ booking_shop.name }}</a
+  >
+  {% else %}
+  <a href="{{ url_for('customer.shops') }}">Browse shops without an account</a>
+  <a class="plain" href="{{ url_for('auth.staff_login') }}"
+    >Laundry shop? Login here</a
+  >
+  {% endif %}
+</div>
+{% endblock %}

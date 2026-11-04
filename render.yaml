@@ -1,0 +1,30 @@
+# Render Blueprint: New > Blueprint > pick this repo. Render reads this file.
+# The values marked "sync: false" are asked for when you create it (from Aiven).
+services:
+  - type: web
+    name: dropwashgo            # -> https://dropwashgo.onrender.com (if the name is free)
+    runtime: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn -w 1 --timeout 60 "app:create_app()"
+    healthCheckPath: /shops
+    envVars:
+      - key: SECRET_KEY
+        generateValue: true
+      - key: DB_HOST
+        sync: false
+      - key: DB_PORT
+        sync: false
+      - key: DB_USER
+        sync: false
+      - key: DB_PASSWORD
+        sync: false
+      - key: DB_NAME
+        value: dropwashgo
+      - key: DB_SSL
+        value: "1"
+      - key: DB_SSL_CA
+        sync: false
+      # First start creates the tables + sample data if the database is empty
+      - key: AUTO_INIT_DB
+        value: "1"

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{#- Figma: 14-notifications.  Owner: Member 4 -#}
+{% from "_macros.html" import page_head %}
+{% set role = "customer" %}{% set active = "Notifications" %}
+{% block title %}Notifications{% endblock %}
+{% block content %}
+{% call page_head("Notifications", "Updates on your bookings and orders.") %}
+  <form method="post" action="{{ url_for('customer.read_all') }}"><button class="btn btn-outline" type="submit">Mark all as read</button></form>
+{% endcall %}
+{% set ICON = {"success": ("success", "✓"), "info": ("", "~"), "delivery": ("", "→"), "error": ("error", "!")} %}
+<section class="card list">
+  {% for n in items %}
+  {% set mins = ((now - n.created_at).total_seconds() // 60)|int %}
+  {% set ago = "now" if mins < 1 else (mins ~ "m ago" if mins < 60 else ((mins // 60) ~ "h ago" if mins < 1440 else (mins // 1440) ~ "d ago")) %}
+  <a class="list-item" href="{{ url_for('customer.open_notification', nid=n.id) }}">
+    <span class="circle {{ ICON[n.kind][0] }}" style="width:44px;height:44px">{{ ICON[n.kind][1] }}</span>
+    <span class="li-body"><span class="li-title">{{ n.title }}</span><span class="li-sub">{{ n.body }}</span></span>
+    <span class="time">{{ ago }}</span>
+    {% if not n.is_read %}<span class="unread-dot" aria-label="Unread"></span>{% endif %}
+  </a>
+  {% else %}
+  <p class="muted" style="padding:18px 0">No notifications yet.</p>
+  {% endfor %}
+</section>
+{% endblock %}

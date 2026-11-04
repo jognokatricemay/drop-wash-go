@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Register your shop · Drop, Wash, Go</title>
+<!-- Figma frame: 16-PC-staff-register-shop -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script src="js/app.js" defer></script>
+</head>
+<body class="staff">
+<div class="auth staff">
+  <section class="auth-brand">
+    <div class="brand-row"><svg class="logo" viewBox="0 0 45 40" fill="none" aria-hidden="true"><path d="M30.9375 0H14.0625C6.296 0 0 5.59644 0 12.5V27.5C0 34.4036 6.296 40 14.0625 40H30.9375C38.704 40 45 34.4036 45 27.5V12.5C45 5.59644 38.704 0 30.9375 0Z" fill="#1D6FE8"/><path d="M22.5 10C26.75 14.9412 31 18.6471 31 23.5882C31 25.554 30.1045 27.4392 28.5104 28.8291C26.9163 30.2191 24.7543 31 22.5 31C20.2457 31 18.0837 30.2191 16.4896 28.8291C14.8955 27.4392 14 25.554 14 23.5882C14 18.6471 18.25 14.9412 22.5 10Z" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/><path d="M19 24C19 24.7956 19.4214 25.5587 20.1716 26.1213C20.9217 26.6839 21.9391 27 23 27" stroke="white" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/></svg><div><div class="brand-name">Drop, Wash, Go</div><div class="brand-tag">SHOP</div></div></div>
+    <div>
+      <h1>Run your laundry shop bookings in one place.</h1>
+      <p class="lead">Receive booking requests, confirm weights, and keep customers updated on every order.</p>
+    </div>
+    <ul><li>✓&nbsp; Accept or reject bookings</li><li>✓&nbsp; Update order status</li><li>✓&nbsp; Mark orders as paid</li></ul>
+  </section>
+  <main class="auth-form">
+    <form class="form" action="staff-login.html">
+      <div class="stack" style="gap:8px">
+        <a class="back" href="index.html">Choose role</a>
+        <h1>Register your shop</h1>
+        <p class="muted">One shop account is used for the MVP.</p>
+      </div>
+      <div class="grid-2">
+        <div class="field"><label for="shop-name">Shop name</label><input class="input" id="shop-name" type="text" value="Mama Fe Laundry"></div>
+        <div class="field"><label for="shop-contact-number">Shop contact number</label><input class="input" id="shop-contact-number" type="tel" value="0917 123 4567"></div>
+      </div>
+      <div class="field"><label for="shop-address">Shop address</label><input class="input" id="shop-address" type="text" value="Mabini St., Balete"></div>
+      <div class="field"><label for="owner-full-name">Owner full name</label><input class="input" id="owner-full-name" type="text" value="Fe Reyes"></div>
+      <div class="grid-2">
+        <div class="field"><label for="username">Username</label><input class="input" id="username" type="text" value="fe.reyes"></div>
+        <div class="field"><label for="password">Password</label><input class="input" id="password" type="password" value="password1"></div>
+      </div>
+      <p class="muted small">You can set services, rates, pickup/delivery, and accepted payments after login.</p>
+      <button class="btn btn-primary btn-block" type="submit">Create shop</button>
+      <div class="links"><a href="staff-login.html">Already registered? Login</a></div>
+    </form>
+  </main>
+</div>
+</body>
+</html>

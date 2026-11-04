@@ -1,0 +1,30 @@
+{% extends "auth/base_auth.html" %} {# Figma: 16-staff-register-shop #} {% from
+"_macros.html" import field %} {% set role = "staff" %} {% block title
+%}Register your shop{% endblock %} {% block form %}
+<div class="stack" style="gap: 8px">
+  <a class="back" href="{{ url_for('auth.welcome') }}">Choose role</a>
+  <h1>Register your shop</h1>
+  <p class="muted">One shop account is used for the MVP.</p>
+</div>
+<div class="grid-2">
+  {{ field("Shop name", "shop_name", form.get("shop_name", ""), errors=errors)
+  }} {{ field("Shop contact number", "contact_number",
+  form.get("contact_number", ""), type="tel", errors=errors) }}
+</div>
+{{ field("Shop address", "address", form.get("address", ""), errors=errors) }}
+{{ field("Owner full name", "owner_name", form.get("owner_name", ""),
+errors=errors) }}
+{{ field("Username", "username", form.get("username", ""), errors=errors) }}
+<div class="grid-2">
+  {{ field("Password", "password", type="password", errors=errors) }}
+  {{ field("Confirm password", "confirm_password", type="password", errors=errors) }}
+</div>
+<p class="muted small">
+  You can set services, rates, pickup/delivery, and accepted payments after
+  login.
+</p>
+<button class="btn btn-primary btn-block" type="submit">Create shop</button>
+<div class="links">
+  <a href="{{ url_for('auth.staff_login') }}">Already registered? Login</a>
+</div>
+{% endblock %}

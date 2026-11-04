@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{#- Figma: 10-request-sent.  Owner: Member 3 -#}
+{% from "_macros.html" import row, pill %}
+{% set role = "customer" %}{% set active = "Find a shop" %}{% set center = true %}
+{% block title %}Request sent{% endblock %}
+{% block center %}
+<section class="card confirm">
+  <span class="circle lg success">✓</span>
+  <h1>Request sent</h1>
+  <p class="muted">Waiting for {{ b.shop_name }} to confirm</p>
+  <div class="info-box">
+    {{ row("Shop", b.shop_name) }}
+    {{ row("Service", b.service_name) }}
+    {{ row("Requested", b.requested_date|short_date ~ " · " ~ b.requested_time) }}
+    {{ row("Payment", "Pay on delivery" if b.handling == "pickup-delivery" else "Pay at the counter") }}
+    {{ row("Status", pill(b.status)) }}
+  </div>
+  <p class="muted text-14">Your Order ID is created once the shop accepts.</p>
+  <div class="btn-pair">
+    <a class="btn btn-primary" href="{{ url_for('customer.my_orders') }}">View my orders</a>
+    <a class="btn btn-outline" href="{{ url_for('customer.home') }}">Back to home</a>
+  </div>
+</section>
+{% endblock %}

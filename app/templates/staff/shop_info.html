@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{#- Figma: 28 / 28a / 28b staff shop info (Save disabled until changed, unsaved-changes pop-up).  Owner: Member 6 -#}
+{% from "_macros.html" import page_head, field, toggle %}
+{% set role = "staff" %}{% set active = "Shop info" %}
+{% block title %}Shop info{% endblock %}
+{% block content %}
+{% call page_head("Shop info", "Customers see this on your shop page.") %}
+  <div class="save-area">
+    <span class="muted small" id="dirty-hint" hidden>You have unsaved changes</span>
+    <button class="btn btn-primary" type="submit" form="shop-form" id="save-shop" disabled>Save changes</button>
+  </div>
+{% endcall %}
+<form class="cols shop-info" id="shop-form" method="post">
+  <input type="hidden" name="next" id="shop-next" value="">
+  <div class="stack" style="gap:20px">
+    <section class="card gap-12">
+      <h2>Shop details</h2>
+      <div class="grid-2" style="gap:12px">
+        {{ field("Shop name", "name", shop.name) }}
+        {{ field("Contact number", "contact_number", shop.contact_number, "tel") }}
+      </div>
+      <div class="grid-2" style="gap:12px">
+        {{ field("Address", "address", shop.address) }}
+        {{ field("Opening hours", "opening_hours", shop.opening_hours) }}
+      </div>
+    </section>
+    <section class="card gap-10">
+      <h2>What your shop offers</h2>
+      {{ toggle("Drop-off", "offers_dropoff", shop.offers_dropoff) }}
+      {{ toggle("Pickup", "offers_pickup", shop.offers_pickup) }}
+      {{ toggle("Delivery", "offers_delivery", shop.offers_delivery) }}
+      {{ field("Delivery fee per booking (₱)", "delivery_fee", shop.delivery_fee|kg, "number", extra='min="0" step="1"') }}
+    </section>
+  </div>
+  <div class="stack" style="gap:20px">
+    <section class="card gap-10">
+      <h2>Services &amp; rates</h2>
+      {% for v in services %}
+      <div class="row">
+        <label for="rate_{{ v.id }}" style="color:var(--ink)">{{ v.name }} (₱ / {{ v.unit }})</label>
+        <span style="max-width:120px"><input class="input" style="height:40px;text-align:right" id="rate_{{ v.id }}" name="rate_{{ v.id }}" type="number" min="0" step="1" value="{{ v.rate|kg }}"></span>
+      </div>
+      <hr class="divider">
+      {% endfor %}
+      {# TODO (Member 6): make "+ Add service" open a small form #}
+      <button class="link" type="button">+ Add service</button>
+    </section>
+    <section class="card gap-10">
+      <h2>Accepted payments</h2>
+      {{ toggle("Cash", "accepts_cash", shop.accepts_cash) }}
+      {{ toggle("GCash", "accepts_gcash", shop.accepts_gcash) }}
+      <div class="grid-2" style="gap:12px">
+        {{ field("GCash number", "gcash_number", shop.gcash_number or "", "tel") }}
+        {{ field("Account name", "gcash_name", shop.gcash_name or "") }}
+      </div>
+      <p class="muted small">Shown to customers. They pay you directly, not in the app.</p>
+    </section>
+  </div>
+</form>
+<p class="muted small">Saved on each booking. Changes apply to new bookings only.</p>
+{% endblock %}
+
+{% block modals %}
+<!-- Shown when leaving the page with unsaved changes -->
+<dialog class="modal" id="unsaved-modal" aria-labelledby="unsaved-title">
+  <div class="modal-body">
+    <span class="circle warn">!</span>
+    <h2 id="unsaved-title">Save your changes?</h2>
+    <p class="text-14">You changed these shop details but didn't save them:</p>
+    <ul class="changes" id="changes-list"></ul>
+    <p class="muted small">After this, you'll go to <strong id="leave-to"></strong>.</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" type="button" id="keep-editing">Keep editing</button>
+      <button class="btn btn-danger" type="button" id="discard-leave">Don't save</button>
+      <button class="btn btn-primary" type="button" id="save-leave">Save changes</button>
+    </div>
+  </div>
+</dialog>
+{% endblock %}

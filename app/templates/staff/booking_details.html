@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{#- Figma: 20-staff-booking-details.  Owner: Member 5 -#}
+{% from "_macros.html" import page_head, row, field %}
+{% set role = "staff" %}{% set active = "Booking requests" %}
+{% block title %}{{ b.customer_name }}{% endblock %}
+{% block content %}
+{{ page_head(b.customer_name, "Booking request · sent " ~ b.created_at|short_date, back=("Booking requests", url_for('staff.requests')), pill_status=b.status) }}
+<div class="cols wide-right">
+  <section class="card">
+    <h2>Request details</h2>
+    {{ row("Phone", b.customer_mobile or "—") }}
+    {{ row("Service", b.service_name) }}
+    {{ row("Est. weight", b.est_weight|kg ~ " " ~ b.unit) }}
+    {{ row("Handling", b.handling|handling) }}
+    {% if b.address %}{{ row("Address", b.address) }}{% endif %}
+    {% if b.notes %}<div class="notes"><span>Special instructions</span><span>{{ b.notes }}</span></div>{% endif %}
+    {{ row("Requested", b.requested_date|short_date ~ " · " ~ b.requested_time) }}
+    {{ row("Est. total", price.total|peso) }}
+    {{ row("Payment", ("Pays on delivery" if b.handling == "pickup-delivery" else "Pays at the counter") ~ " (" ~ payment_methods(b) ~ ")") }}
+  </section>
+  {% if b.status == "Pending" %}
+  <form class="stack" method="post">
+    <section class="card">
+      <h2>Confirm schedule</h2>
+      {{ field("Confirmed " ~ ("drop-off" if b.handling == "drop-off" else "pickup") ~ " time (sent to customer)", "confirmed_schedule", b.requested_time) }}
+      <p class="muted small">Change the time if the requested one does not work. Requested date: {{ b.requested_date|short_date }}.</p>
+      <hr class="divider">
+      {{ field("Reason (if rejecting)", "reason", errors=errors, placeholder="e.g. fully booked that day") }}
+    </section>
+    <button class="btn btn-primary btn-block" type="submit" name="action" value="accept">Accept booking</button>
+    <button class="btn btn-danger btn-block" type="submit" name="action" value="reject">Reject booking</button>
+  </form>
+  {% else %}
+  <section class="card">
+    <h2>{{ b.status }}</h2>
+    {% if b.reject_reason %}<p class="text-14">Reason: {{ b.reject_reason }}</p>{% endif %}
+    {% if b.order_code %}<a class="btn btn-primary btn-block" href="{{ url_for('staff.order_details', booking_id=b.id) }}">View order #{{ b.order_code }}</a>{% endif %}
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+{#- Figma: 07-book-laundry, 07b drop-off only, 08 validation errors.  Owner: Member 3 -#}
+{% from "_macros.html" import page_head, field, select, option_card, error %}
+{% set role = "customer" %}{% set active = "Find a shop" %}
+{% block title %}Book laundry{% endblock %}
+{% block content %}
+{{ page_head("Book laundry", shop.name, back=(shop.name, url_for('customer.shop_details', shop_id=shop.id))) }}
+
+{% set sel = form.get("handling") %}
+{% set service_opts = [] %}
+{% for v in shop.services %}{% set _ = service_opts.append((v.id, v.name ~ " — " ~ v.rate|peso ~ " / " ~ v.unit, 'data-rate="' ~ v.rate ~ '" data-unit="' ~ v.unit ~ '"')) %}{% endfor %}
+{% set first = shop.services[0] if shop.services else none %}
+{% set time_opts = [] %}
+{% for t in time_slots %}{% set _ = time_opts.append((t, t)) %}{% endfor %}
+
+<form class="cols book" id="booking-form" method="post" data-rate="{{ first.rate if first else 0 }}" data-fee="{{ shop.delivery_fee }}" novalidate>
+  <section class="card" style="gap:20px">
+    {% if errors %}<p class="note error" role="alert">Please fix {{ errors|length }} {{ "field" if errors|length == 1 else "fields" }} before continuing.</p>{% endif %}
+    {{ select("Service", "service_id", service_opts, form.get("service_id"), errors) }}
+    <fieldset class="field" style="border:0;margin:0;padding:0">
+      <legend class="field-label" style="margin-bottom:8px">How do you want it handled?</legend>
+      <div class="options">
+        {{ option_card("handling", "drop-off", "Drop-off", "You bring and collect it at the shop" if "drop-off" in offered else "Not offered by this shop", sel == "drop-off", "drop-off" not in offered) }}
+        {{ option_card("handling", "pickup", "Pickup", "Shop picks it up, you collect at the shop" if "pickup" in offered else "Not offered by this shop", sel == "pickup", "pickup" not in offered) }}
+        {{ option_card("handling", "pickup-delivery", "Pickup + Delivery", "Shop picks it up and delivers it back" if "pickup-delivery" in offered else "Not offered by this shop", sel == "pickup-delivery", "pickup-delivery" not in offered) }}
+      </div>
+      {{ error(errors, "handling") }}
+    </fieldset>
+    {% if offered == ["drop-off"] %}
+    <p class="note gray">{{ shop.name }} only offers drop-off. Bring your laundry to {{ shop.address }} and collect it there.</p>
+    {% endif %}
+    {{ field("Estimated weight (kg)", "est_weight", form.get("est_weight"), "number", errors, "e.g. 3", 'min="0.5" step="0.5"') }}
+    <div class="grid-2">
+      {{ field('<span data-when>Pickup</span> date', "requested_date", form.get("requested_date"), "date", errors, "", 'min="' ~ today ~ '"') }}
+      {{ select('Time', "requested_time", time_opts, form.get("requested_time"), errors) }}
+    </div>
+    <div data-show="pickup">{{ field("Pickup &amp; delivery address", "address", form.get("address"), errors=errors) }}</div>
+    {{ field("Notes (optional)", "notes", form.get("notes"), placeholder="e.g. separate whites, no fabric softener") }}
+  </section>
+
+  <div class="stack">
+    <section class="card">
+      <h2>Booking summary</h2>
+      <div class="row text-14"><span>Shop</span><span>{{ shop.name }}</span></div>
+      <div class="row text-14"><span>Handling</span><span data-sum="handling">—</span></div>
+      <div class="row text-14"><span>Laundry (<span data-sum="rate">{{ (first.rate if first else 0)|peso }}</span> x <span data-sum="kg">0</span> est.)</span><span data-sum="laundry">₱0</span></div>
+      {% if shop.offers_delivery %}<div class="row text-14" data-show="delivery"><span>Delivery fee</span><span>{{ shop.delivery_fee|peso }}</span></div>{% endif %}
+      <hr class="divider">
+      <div class="row total"><span>Estimated total</span><span data-sum="total">₱0</span></div>
+    </section>
+    <section class="card gap-10">
+      <h2>How you'll pay</h2>
+      <div data-pay="delivery" hidden><p class="bold brand-txt">Pay on delivery</p>
+        <p class="text-14">Pay the rider when your laundry comes back. {{ payment_methods(shop) }} to the shop.</p></div>
+      <div data-pay="counter"><p class="bold brand-txt">Pay at the counter</p>
+        <p class="text-14">Pay when you collect your laundry at {{ shop.name }}. {{ payment_methods(shop) }}.</p></div>
+      <p class="muted small">No payment is made in the app.</p>
+    </section>
+    <p class="muted small">The schedule is subject to shop confirmation.</p>
+    <button class="btn btn-primary btn-block" type="submit">Review booking</button>
+  </div>
+</form>
+{% endblock %}

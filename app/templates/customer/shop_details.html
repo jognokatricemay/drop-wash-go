@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{#- Figma: 06-shop-details and 06a-shop-details-guest.  Owner: Member 3 -#}
+{% from "_macros.html" import page_head, row %}
+{% set role = "customer" %}{% set active = "Find a shop" %}
+{% block title %}{{ shop.name }}{% endblock %}
+{% block content %}
+{% call page_head(shop.name, shop.address ~ "  ·  Open " ~ shop.opening_hours, back=("Shops", url_for('customer.shops'))) %}
+  <div class="stack" style="gap:6px;align-items:flex-end">
+    <a class="btn btn-primary" href="{{ url_for('customer.book', shop_id=shop.id) }}">Book here</a>
+    {% if not g.user %}<span class="muted small">You'll be asked to log in or sign up before booking.</span>{% endif %}
+  </div>
+{% endcall %}
+
+<div class="cols">
+  <section class="card">
+    <h2>Services &amp; rates</h2>
+    {% for v in shop.services %}
+    <div class="row"><span style="color:var(--ink)">{{ v.name }}</span><span>{{ v.rate|peso }} / {{ v.unit }}</span></div>
+    <hr class="divider">
+    {% endfor %}
+    {% if shop.offers_delivery %}
+    <div class="row"><span style="color:var(--ink)">Delivery fee</span><span>{{ shop.delivery_fee|peso }} / booking</span></div>
+    <hr class="divider">
+    {% endif %}
+    <p class="muted text-14">Final price may change based on actual weight.</p>
+  </section>
+  <div class="stack">
+    <section class="card">
+      <h2>What this shop offers</h2>
+      <div class="tags">
+        {% if shop.offers_dropoff %}<span class="tag">Drop-off</span>{% endif %}
+        {% if shop.offers_pickup %}<span class="tag">Pickup</span>{% endif %}
+        {% if shop.offers_delivery %}<span class="tag">Delivery</span>{% endif %}
+        {% if not shop.offers_pickup %}<span class="tag muted-tag">No pickup</span>{% endif %}
+      </div>
+      <p class="muted text-14">
+        Drop-off: you bring and collect your laundry at the shop.
+        {% if shop.offers_pickup %}<br>Pickup: the shop collects it, you collect it at the shop.{% endif %}
+        {% if shop.offers_pickup and shop.offers_delivery %}<br>Pickup + Delivery: the shop collects it and brings it back.{% endif %}
+      </p>
+      {% if shop.offers_pickup %}<p class="muted small">Pickup and delivery are subject to shop confirmation.</p>{% endif %}
+    </section>
+    <section class="card">
+      <h2>Accepted payments</h2>
+      <div class="tags">
+        {% if shop.accepts_cash %}<span class="tag success">Cash</span>{% endif %}
+        {% if shop.accepts_gcash %}<span class="tag success">GCash</span>{% endif %}
+      </div>
+      <p class="text-14">You pay the shop directly: at the counter when you collect{{ ", or to the rider when your laundry is delivered" if shop.offers_delivery }}.</p>
+      {% if shop.accepts_gcash and shop.gcash_number %}{{ row("Shop GCash", shop.gcash_number, "text-14") }}{% endif %}
+      <p class="muted small">No payment is made inside the app.</p>
+    </section>
+  </div>
+</div>
+{% endblock %}

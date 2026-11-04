@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{#- Figma: 18-staff-dashboard.  Owner: Member 5 -#}
+{% from "_macros.html" import page_head, pill %}
+{% set role = "staff" %}{% set active = "Dashboard" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+{% call page_head("Dashboard", g.shop.name ~ " · " ~ now_label()) %}
+  <a class="btn btn-primary" href="{{ url_for('staff.requests') }}">Review requests</a>
+{% endcall %}
+{% set ready = counts.get("Ready for Pickup", 0) + counts.get("Ready for Delivery", 0) %}
+<section class="stats">
+  <a class="stat" href="{{ url_for('staff.requests') }}"><span class="bar pending"></span><span class="num">{{ counts.get("Pending", 0) }}</span><span class="muted">Pending requests</span></a>
+  <a class="stat" href="{{ url_for('staff.orders', tab='active') }}"><span class="bar accepted"></span><span class="num">{{ counts.get("Accepted", 0) }}</span><span class="muted">Accepted</span></a>
+  <a class="stat" href="{{ url_for('staff.orders', tab='active') }}"><span class="bar processing"></span><span class="num">{{ counts.get("Processing", 0) }}</span><span class="muted">Processing</span></a>
+  <a class="stat" href="{{ url_for('staff.orders', tab='active') }}"><span class="bar ready"></span><span class="num">{{ ready }}</span><span class="muted">Ready</span></a>
+</section>
+<div class="cols dash">
+  <section class="card">
+    <h2>Active orders</h2>
+    {% if active_orders %}
+    <div class="table-wrap">
+      <table class="table">
+        <thead><tr><th>Order ID</th><th>Customer</th><th>Handling</th><th>Payment</th><th>Status</th></tr></thead>
+        <tbody>
+        {% for b in active_orders %}
+          {% set url = url_for('staff.order_details', booking_id=b.id) %}
+          <tr data-href="{{ url }}">
+            <td data-label="Order ID"><a class="id-link" href="{{ url }}">#{{ b.order_code }}</a></td>
+            <td data-label="Customer">{{ b.customer_name }}</td>
+            <td data-label="Handling">{{ b.handling|handling }}</td>
+            <td data-label="Payment">{{ pill(b.payment_status) }}</td>
+            <td data-label="Status">{{ pill(b.status) }}</td>
+          </tr>
+        {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}<p class="muted">No active orders.</p>{% endif %}
+  </section>
+  <section class="card" style="gap:0">
+    <h2 style="margin-bottom:6px">Needs attention</h2>
+    {% set pending = counts.get("Pending", 0) %}
+    {% if pending %}
+    <a class="attention" href="{{ url_for('staff.requests') }}">
+      <span class="circle warn">!</span>
+      <span><span class="a-title">{{ pending }} new booking {{ "request" if pending == 1 else "requests" }}</span><br><span class="a-sub strong">Review now</span></span>
+    </a>
+    {% endif %}
+    {% for b in active_orders %}
+      {% if b.status == "Accepted" and b.actual_weight is none %}
+      <a class="attention" href="{{ url_for('staff.order_details', booking_id=b.id) }}#confirm-weight">
+        <span class="circle purple">⚖</span>
+        <span><span class="a-title">#{{ b.order_code }} needs weighing</span><br><span class="a-sub muted">{{ b.customer_name }}</span></span>
+      </a>
+      {% elif b.status.startswith("Ready") %}
+      <a class="attention" href="{{ url_for('staff.order_details', booking_id=b.id) }}">
+        <span class="circle gray">→</span>
+        <span><span class="a-title">#{{ b.order_code }} {{ b.status|lower }}</span><br><span class="a-sub muted">{{ b.delivery_schedule or "" }}{{ " · " if b.delivery_schedule }}collect {{ booking_price(b).total|peso(2) }}</span></span>
+      </a>
+      {% endif %}
+    {% endfor %}
+    {% if not pending and not active_orders %}<p class="muted" style="padding-top:8px">All caught up.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

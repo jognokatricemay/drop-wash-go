@@ -1,12 +1,16 @@
 {
-  "python.defaultInterpreterPath": "C:\\Users\\sam\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
-  "python.terminal.activateEnvironment": true,
-  "sqltools.connections": [
-    {
-      "name": "Booking System (SQLite)",
-      "dialect": "SQLite",
-      "database": "${workspaceFolder}/booking_system.db"
-    }
-  ],
-  "python.terminal.useEnvFile": true
+  // Flask templates use Jinja ({% %} / {{ }}). Prettier's HTML formatter can break them,
+  // so templates are treated as Jinja and not auto-formatted on save.
+  "files.associations": {
+    "**/app/templates/**/*.html": "jinja-html"
+  },
+  "[jinja-html]": {
+    "editor.formatOnSave": false
+  },
+  "emmet.includeLanguages": {
+    "jinja-html": "html"
+  },
+  // Use the project's virtual environment (.venv) for Python, the terminal and the debugger
+  "python.defaultInterpreterPath": "${workspaceFolder}/.venv/Scripts/python.exe",
+  "python.terminal.activateEnvironment": true
 }

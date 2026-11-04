@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{#- Figma: 09-review-booking.  Owner: Member 3 -#}
+{% from "_macros.html" import page_head, row %}
+{% set role = "customer" %}{% set active = "Find a shop" %}
+{% block title %}Review booking{% endblock %}
+{% block content %}
+{% set book_url = url_for('customer.book', shop_id=shop.id) %}
+{{ page_head("Review booking", "Check the details before you send your request.", back=("Book laundry", book_url)) }}
+{% set delivers = b.handling == "pickup-delivery" %}
+<div class="cols">
+  <div class="stack">
+    <section class="card">
+      <h2>{{ shop.name }}</h2>
+      {{ row("Service", b.service_name) }}
+      {{ row("Handling", b.handling|handling) }}
+      {{ row("Requested", b.requested_date|short_date ~ " · " ~ b.requested_time) }}
+      {% if b.address %}{{ row("Address", b.address) }}{% endif %}
+      {% if b.notes %}<div class="notes"><span>Special instructions</span><span>{{ b.notes }}</span></div>{% endif %}
+    </section>
+    <section class="card">
+      <h2>Estimated price</h2>
+      {{ row("Laundry (" ~ b.rate|peso ~ " x " ~ b.est_weight|kg ~ " " ~ b.unit ~ " est.)", price.laundry|peso) }}
+      {% if delivers %}{{ row("Delivery fee", price.fee|peso) }}{% endif %}
+      <hr class="divider">
+      {{ row("Estimated total", price.total|peso, "total") }}
+      <p class="muted small">Final laundry price depends on the actual weight. The schedule is subject to shop confirmation.</p>
+    </section>
+  </div>
+  <form class="stack" method="post">
+    <section class="card gap-12 brand-border">
+      <h2>How you'll pay</h2>
+      <div class="brand-row">
+        <span class="circle">₱</span>
+        <div><div class="title" style="font-size:16px;font-weight:600">{{ "Pay on delivery" if delivers else "Pay at the counter" }}</div>
+             <div class="muted small">Because you chose {{ b.handling|handling }}</div></div>
+      </div>
+      <p class="text-14">{{ "Pay the rider when your laundry is delivered." if delivers else "Pay when you collect your laundry at the shop." }} {{ payment_methods(shop) }}.</p>
+      <div class="info-box">
+        {{ row("Accepted", payment_methods(shop), "text-14") }}
+        {% if shop.accepts_gcash and shop.gcash_number %}
+        {{ row("Shop GCash", shop.gcash_number, "text-14") }}
+        {{ row("Account name", shop.gcash_name, "text-14") }}
+        {% endif %}
+      </div>
+      <p class="muted small">You pay the final amount after the shop weighs your laundry. No payment is made in the app.</p>
+    </section>
+    <button class="btn btn-primary btn-block" type="submit">Submit booking</button>
+    <a class="btn btn-outline btn-block" href="{{ book_url }}">Edit booking</a>
+  </form>
+</div>
+{% endblock %}
