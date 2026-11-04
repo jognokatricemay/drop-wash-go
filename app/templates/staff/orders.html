@@ -14,19 +14,23 @@
     <a class="chip {{ 'active' if tab == 'unpaid' }}" href="{{ url_for('staff.orders', tab='unpaid', q=q or None) }}">Not paid</a>
   </div>
   <span class="spacer"></span>
-  <input class="search sm" type="search" name="q" value="{{ q }}" placeholder="Search Order ID or customer" aria-label="Search Order ID or customer">
-  <button type="submit" class="btn">Search</button>
+  <div class="search-row">
+    <input class="search sm" type="search" name="q" value="{{ q }}" placeholder="Search Order ID or customer" aria-label="Search Order ID or customer" data-live-search="#orders-table tbody tr">
+    <button type="submit" class="btn search-btn" aria-label="Search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    </button>
+  </div>
 </form>
 <section class="card">
   {% if rows %}
   <div class="table-wrap">
-    <table class="table">
+    <table class="table" id="orders-table">
       <thead><tr><th>Order ID</th><th>Customer</th><th>Weight</th><th>Handling</th><th>Total</th><th>Payment</th><th>Status</th></tr></thead>
       <tbody>
       {% for b in rows %}
         {% set url = url_for('staff.order_details', booking_id=b.id) %}
         {% set p = booking_price(b) %}
-        <tr data-href="{{ url }}">
+        <tr data-href="{{ url }}" data-search="{{ (b.order_code ~ ' ' ~ b.customer_name)|lower }}">
           <td data-label="Order ID"><a class="id-link" href="{{ url }}">#{{ b.order_code }}</a></td>
           <td data-label="Customer">{{ b.customer_name }}</td>
           <td data-label="Weight">{{ ("Est. " if p.estimated) ~ p.weight|kg ~ " " ~ b.unit }}</td>
@@ -39,17 +43,9 @@
       </tbody>
     </table>
   </div>
+  <p class="muted" id="no-results" hidden>No orders match your search.</p>
   {% else %}
   <p class="muted">No orders found.</p>
   {% endif %}
 </section>
-<script>
-  const box = document.querySelector(".toolbar .search");
-  let timer;
-  box.addEventListener("input", () => {
-    clearTimeout(timer);
-    timer = setTimeout(() => box.form.submit(), 400);   // maghihintay ng 0.4s pagkatapos mag-type
-  });
-  if (box.value) { box.focus(); box.setSelectionRange(box.value.length, box.value.length); }
-</script>
 {% endblock %}

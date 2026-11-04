@@ -258,6 +258,9 @@ button.link { background: none; border: 0; padding: 0; cursor: pointer; text-ali
   background: #fff;
 }
 .search.sm { width: 300px; }
+.search-row { display: flex; gap: 8px; align-items: center; }
+.search-btn { width: 44px; height: 44px; padding: 0; flex: none; }
+.search-btn svg { width: 20px; height: 20px; }
 
 /* ---------- Form fields ---------- */
 .field { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
@@ -618,6 +621,8 @@ select.input {
   .stat .num { font-size: 26px; }
   .shop-grid { grid-template-columns: 1fr; gap: 16px; }
   .search, .search.sm { width: 100%; }
+  .search-row { width: 100%; }
+  .search-row .search { flex: 1; min-width: 0; width: auto; }
   .toolbar .spacer { display: none; }
   .row { font-size: 14px; }
   .row.total { font-size: 17px; }

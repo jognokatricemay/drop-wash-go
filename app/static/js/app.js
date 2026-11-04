@@ -99,6 +99,25 @@ document.addEventListener("DOMContentLoaded", () => {
     update();
   }
 
+  // Live search (staff Orders): rows are hidden or shown as you type, no page reload
+  const live = document.querySelector("[data-live-search]");
+  if (live) {
+    const rows = document.querySelectorAll(live.dataset.liveSearch);
+    const none = document.querySelector("#no-results");
+    const filter = () => {
+      const q = live.value.trim().toLowerCase().replace(/^#/, "");
+      let shown = 0;
+      rows.forEach((row) => {
+        const hit = row.dataset.search.includes(q);
+        row.hidden = !hit;
+        if (hit) shown++;
+      });
+      if (none) none.hidden = shown > 0;
+    };
+    live.addEventListener("input", filter);
+    filter(); // also applies a search that came from the URL (?q=...)
+  }
+
   // Small confirm pop-ups: a button with data-open-modal="id" opens <dialog id="id">; data-close-modal closes it
   document.querySelectorAll("[data-open-modal]").forEach((btn) =>
     btn.addEventListener("click", () => document.getElementById(btn.dataset.openModal)?.showModal()));
