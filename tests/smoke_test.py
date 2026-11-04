@@ -242,6 +242,46 @@ r = app.test_client().post("/shop/register", data={"shop_name": "Test Shop", "co
                                                    "confirm_password": "password123"})
 check("shop register: security question is required", "Choose a security question" in r.get_data(as_text=True))
 
+# ---- customer: cancel a booking, edit profile and address (Member 4)
+with app.app_context():
+    mine = query("SELECT id, status FROM bookings WHERE customer_id=1 ORDER BY id")
+    pending = next(b["id"] for b in mine if b["status"] == "Pending")
+    not_pending = next(b["id"] for b in mine if b["status"] != "Pending")
+    before = query("SELECT status FROM bookings WHERE id=%s", [not_pending], one=True)["status"]
+r = c.post(f"/orders/{not_pending}/cancel")
+with app.app_context():
+    after = query("SELECT status FROM bookings WHERE id=%s", [not_pending], one=True)["status"]
+check("only a Pending booking can be cancelled", after == before)
+get(c, f"/orders/{pending}", contains="Cancel Booking")
+r = c.post(f"/orders/{pending}/cancel")
+check("cancelling a Pending booking redirects to Past orders", r.status_code == 302 and "tab=past" in r.headers["Location"])
+get(c, "/orders?tab=past", contains="Cancelled")
+r = get(c, "/orders", contains="My orders")
+check("cancelled booking leaves the Active tab", f"/orders/{pending}" not in r.get_data(as_text=True))
+get(c, f"/orders/{pending}", contains="was cancelled")
+r = guest.post(f"/orders/{pending}/cancel")
+check("guest can't cancel a booking", r.status_code == 302 and "/login" in r.headers["Location"])
+
+get(c, "/profile/edit-info", contains="Edit personal information")
+get(c, "/profile/edit-address", contains="Saved")
+for label, change, words in [
+    ("edit info: mobile must be 11 digits starting 09", {"mobile": "12345"}, "11 digits starting with 09"),
+    ("edit info: mobile already used is refused", {"mobile": "09181112222"}, "already in use"),
+    ("edit info: empty name is refused", {"full_name": " "}, "Full name is required"),
+]:
+    r = c.post("/profile/edit-info", data={"full_name": "Juan Dela Cruz", "mobile": "09171234567", "email": "", **change})
+    check(label, words in r.get_data(as_text=True))
+r = c.post("/profile/edit-info", data={"full_name": "Juan D. Cruz", "mobile": "09171234567", "email": "juan@example.com"})
+check("edit info: valid change is saved", r.status_code == 302)
+get(c, "/profile", contains="Juan D. Cruz")
+r = c.post("/profile/edit-address", data={"address": " "})
+check("edit address: empty address is refused", "Address is required" in r.get_data(as_text=True))
+r = c.post("/profile/edit-address", data={"address": "77 Sampaguita St., Balete"})
+check("edit address: valid address is saved", r.status_code == 302)
+get(c, "/profile", contains="77 Sampaguita St.")
+r = guest.get("/profile/edit-info")
+check("guest can't open edit info", r.status_code == 302 and "/login" in r.headers["Location"])
+
 with app.app_context():
     shop = query("SELECT offers_pickup, delivery_fee FROM shops WHERE id=1", one=True)
     check("shop info toggles saved", shop["offers_pickup"] == 0 and shop["delivery_fee"] == 60)

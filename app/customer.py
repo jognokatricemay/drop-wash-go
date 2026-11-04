@@ -5,7 +5,7 @@ Owners:  Member 3 — shops, shop details, booking, review, request sent
 from datetime import date, datetime, timedelta, time
 from decimal import Decimal, InvalidOperation
 
-from flask import Blueprint, abort, g, redirect, render_template, request, session, url_for, flash
+from flask import Blueprint, abort, flash, g, redirect, render_template, request, session, url_for
 
 from .db import execute, query
 from .helpers import BOOKING_SQL, HANDLING, TIME_SLOTS, booking_price, login_required, now_ph, today_ph
@@ -222,12 +222,19 @@ def request_sent(booking_id):
 @login_required("customer")
 def my_orders():
     tab = request.args.get("tab", "active")
+    uid = g.user["id"]
+    
     if tab == "past":
-        rows = query(BOOKING_SQL + " WHERE b.customer_id=%s AND b.status IN ('Completed','Rejected') ORDER BY b.updated_at DESC",
-                     [g.user["id"]])
+        rows = query(
+            BOOKING_SQL + " WHERE b.customer_id=%s AND b.status IN ('Completed','Rejected','Cancelled') ORDER BY b.updated_at DESC, b.id DESC",
+            [uid]
+        )
     else:
-        rows = query(BOOKING_SQL + " WHERE b.customer_id=%s AND b.status IN %s ORDER BY b.created_at DESC",
-                     [g.user["id"], ACTIVE])
+        rows = query(
+            BOOKING_SQL + " WHERE b.customer_id=%s AND b.status IN %s ORDER BY b.created_at DESC, b.id DESC",
+            [uid, ACTIVE]
+        )
+        
     return render_template("customer/my_orders.html", orders=rows, tab=tab)
 
 
@@ -272,5 +279,105 @@ def open_notification(nid):
 @bp.route("/profile")
 @login_required("customer")
 def profile():
-    # TODO (Member 4): add pages to edit personal information and saved address
     return render_template("customer/profile.html")
+
+
+@bp.route("/profile/edit-address", methods=["GET", "POST"])
+@login_required("customer")
+def edit_address():
+    uid = g.user["id"]
+    errors = {}
+
+    if request.method == "POST":
+        address = request.form.get("address", "").strip()
+
+        if not address:
+            errors["address"] = "Address is required."
+
+        if not errors:
+            execute("UPDATE users SET address=%s WHERE id=%s", [address, uid])
+            return redirect(url_for("customer.profile"))
+
+        return render_template(
+            "customer/edit_address.html", 
+            errors=errors, 
+            form={"address": address}, 
+            active="profile", 
+            active_page="profile"
+        )
+
+    
+    user = query("SELECT address FROM users WHERE id=%s", [uid], one=True)
+    return render_template(
+        "customer/edit_address.html", 
+        errors={}, 
+        form=user, 
+        active="profile", 
+        active_page="profile"
+    )
+
+
+
+@bp.route("/profile/edit-info", methods=["GET", "POST"])
+@login_required("customer")
+def edit_info():
+    uid = g.user["id"]
+    errors = {}
+
+    if request.method == "POST":
+        full_name = request.form.get("full_name", "").strip()
+        mobile = request.form.get("mobile", "").strip()
+        email = request.form.get("email", "").strip()
+
+        if not full_name:
+            errors["full_name"] = "Full name is required."
+
+        if not mobile:
+            errors["mobile"] = "Mobile number is required."
+        elif len(mobile) != 11 or not mobile.startswith("09") or not mobile.isdigit():
+            errors["mobile"] = "Mobile number must be 11 digits starting with 09."
+        else:
+            existing_mobile = query("SELECT id FROM users WHERE mobile=%s AND id<>%s", [mobile, uid], one=True)
+            if existing_mobile:
+                errors["mobile"] = "Mobile number is already in use by another account."
+
+        if email:
+            if "@" not in email or "." not in email:
+                errors["email"] = "Invalid email address format."
+            else:
+                existing_email = query("SELECT id FROM users WHERE email=%s AND id<>%s", [email, uid], one=True)
+                if existing_email:
+                    errors["email"] = "Email address is already in use by another account."
+
+        if not errors:
+            execute(
+                "UPDATE users SET full_name=%s, mobile=%s, email=%s WHERE id=%s",
+                [full_name, mobile, email if email else None, uid]
+            )
+            flash("Personal information updated successfully.")
+            return redirect(url_for("customer.profile"))
+
+        return render_template(
+            "customer/edit_info.html", 
+            errors=errors, 
+            form={"full_name": full_name, "mobile": mobile, "email": email}
+        )
+
+    user = query("SELECT full_name, mobile, email FROM users WHERE id=%s", [uid], one=True)
+    form = {
+        "full_name": user["full_name"] if user else g.user.get("full_name", ""),
+        "mobile": user["mobile"] if user else g.user.get("mobile", ""),
+        "email": user["email"] if user else g.user.get("email", "")
+    }
+
+    return render_template("customer/edit_info.html", errors=errors, form=form)
+
+@bp.route("/orders/<int:booking_id>/cancel", methods=["POST"])
+@login_required("customer")
+def cancel_booking(booking_id):
+    b = own_booking(booking_id)
+    # only a Pending request can be cancelled (once the shop accepts it, it is no longer the customer's to cancel)
+    if b["status"] == "Pending":
+        execute("UPDATE bookings SET status='Cancelled' WHERE id=%s AND customer_id=%s AND status='Pending'", [booking_id, g.user["id"]])
+        flash("Your booking request was cancelled.")
+    return redirect(url_for("customer.my_orders", tab="past"))

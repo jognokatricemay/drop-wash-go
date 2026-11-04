@@ -7,10 +7,13 @@
 {% call page_head("My orders", "Booking requests and orders from all shops.") %}
   <a class="btn btn-primary" href="{{ url_for('customer.shops') }}">Book laundry</a>
 {% endcall %}
+
+
 <div class="chips">
   <a class="chip {{ 'active' if tab != 'past' }}" href="{{ url_for('customer.my_orders') }}">Active</a>
   <a class="chip {{ 'active' if tab == 'past' }}" href="{{ url_for('customer.my_orders', tab='past') }}">Past</a>
 </div>
+
 <section class="card">
   {% if orders %}
   <div class="table-wrap">
@@ -24,7 +27,7 @@
           <td data-label="Shop">{{ b.shop_name }}</td>
           <td data-label="Handling">{{ b.handling|handling }}</td>
           <td data-label="Weight">{{ (b.actual_weight|kg ~ " kg") if b.actual_weight else ("Est. " ~ b.est_weight|kg ~ " kg") }}</td>
-          <td data-label="Payment">{% if b.status in ("Pending", "Rejected") %}—{% else %}{{ pill(b.payment_status) }}{% endif %}</td>
+          <td data-label="Payment">{% if b.status in ("Pending", "Rejected", "Cancelled") %}—{% else %}{{ pill(b.payment_status) }}{% endif %}</td>
           <td data-label="Status">{{ pill(b.status) }}</td>
         </tr>
       {% endfor %}

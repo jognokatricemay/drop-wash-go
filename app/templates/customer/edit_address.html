@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+{% from "_macros.html" import field, page_head %}
+
+{% set role = "customer" %}
+{% set active = "Profile" %}
+
+{% block title %}Edit Saved Address{% endblock %}
+
+{% block content %}
+{{ page_head("Edit saved address", back=("Back to Profile", url_for('customer.profile')), sub="Update your delivery and pickup address below.") }}
+
+<form method="POST" id="edit-address-form" novalidate style="display: flex; flex-direction: column; gap: 20px;">
+  <div>
+    {{ field("Delivery / Pickup Address", "address", form.get("address", "") if form.get is defined else (form.address or ""), errors=errors, placeholder="Enter your full address") }}
+    <span id="address-error" class="error-text" style="display: none;"></span>
+  </div>
+
+  <div style="margin-top: 12px; display: flex; gap: 12px;">
+    <button class="btn btn-primary btn-block" type="submit" id="save-btn" disabled style="opacity: 0.6; cursor: not-allowed; flex: 1;">Save Address</button>
+    <a href="{{ url_for('customer.profile') }}" class="btn btn-secondary btn-block" style="flex: 1; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center;">Cancel</a>
+  </div>
+</form>
+
+<dialog id="discard-modal" class="custom-modal">
+  <div class="stack" style="gap: 16px;">
+    <h3 style="margin: 0; font-size: 1.25rem;">Discard unsaved changes?</h3>
+    <p class="muted" style="margin: 0; font-size: 0.95rem;">You have unsaved changes on this page. If you leave now, your updates will be lost.</p>
+    
+    <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 8px;">
+      <button type="button" id="cancel-discard-btn" class="btn btn-secondary">
+        Keep editing
+      </button>
+      <button type="button" id="confirm-discard-btn" class="btn btn-danger">
+        Discard changes
+      </button>
+    </div>
+  </div>
+</dialog>
+
+<style>
+  .custom-modal {
+    border: none;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 420px;
+    width: 90%;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+    background: #ffffff;
+    margin: auto;
+  }
+
+  .custom-modal::backdrop {
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+  }
+
+  .error-text {
+    color: #dc2626 !important;
+    font-size: 0.85rem;
+    margin-top: 6px;
+    display: block;
+    line-height: 1.25;
+  }
+</style>
+
+<script>
+  document.addEventListener("DOMContentLoaded", function() {
+    const form = document.getElementById("edit-address-form");
+    const addressInput = document.querySelector("textarea[name='address'], input[name='address']");
+    const addressError = document.getElementById("address-error");
+    const saveButton = document.getElementById("save-btn");
+    const modal = document.getElementById("discard-modal");
+    const cancelDiscardBtn = document.getElementById("cancel-discard-btn");
+    const confirmDiscardBtn = document.getElementById("confirm-discard-btn");
+
+    if (!form || !addressInput || !saveButton || !modal) return;
+
+    let isDirty = false;
+    let isSubmitting = false;
+    let targetUrl = null;
+
+    const originalValue = addressInput.value.trim();
+
+    function validateAddress(val) {
+      if (!val) {
+        return "Address is required.";
+      }
+      return "";
+    }
+
+    function checkChanges() {
+      const currentVal = addressInput.value.trim();
+      const hasChanges = currentVal !== originalValue;
+      isDirty = hasChanges;
+
+      const errorMsg = validateAddress(currentVal);
+
+      if (currentVal.length === 0) {
+        addressError.textContent = errorMsg;
+        addressError.style.display = "block";
+        addressInput.style.borderColor = "#dc2626";
+      } else {
+        addressError.style.display = "none";
+        addressInput.style.borderColor = "";
+      }
+
+      const isValid = !errorMsg;
+
+      if (hasChanges && isValid) {
+        saveButton.removeAttribute("disabled");
+        saveButton.style.opacity = "1";
+        saveButton.style.cursor = "pointer";
+      } else {
+        saveButton.setAttribute("disabled", "disabled");
+        saveButton.style.opacity = "0.6";
+        saveButton.style.cursor = "not-allowed";
+      }
+    }
+
+    addressInput.addEventListener("input", checkChanges);
+    addressInput.addEventListener("change", checkChanges);
+
+    form.addEventListener("submit", function(e) {
+      const currentVal = addressInput.value.trim();
+      const errorMsg = validateAddress(currentVal);
+
+      if (errorMsg) {
+        e.preventDefault();
+        addressError.textContent = errorMsg;
+        addressError.style.display = "block";
+        addressInput.style.borderColor = "#dc2626";
+        return;
+      }
+
+      isSubmitting = true;
+    });
+
+    window.addEventListener("click", function(e) {
+      const link = e.target.closest("a");
+      if (link && link.href && !link.href.startsWith("javascript:") && !link.href.includes("#") && isDirty && !isSubmitting) {
+        e.preventDefault();
+        e.stopPropagation();
+        targetUrl = link.href;
+        modal.showModal();
+      }
+    }, true);
+
+    cancelDiscardBtn.addEventListener("click", function() {
+      modal.close();
+      targetUrl = null;
+    });
+
+    confirmDiscardBtn.addEventListener("click", function() {
+      isDirty = false;
+      modal.close();
+      if (targetUrl) {
+        window.location.href = targetUrl;
+      }
+    });
+  });
+</script>
+{% endblock %}

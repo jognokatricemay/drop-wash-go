@@ -3,9 +3,11 @@
 {% from "_macros.html" import page_head, row, pill %}
 {% set role = "customer" %}{% set active = "My orders" %}
 {% block title %}{{ order_label(b) }}{% endblock %}
+
 {% block content %}
 {% set delivers = b.handling == "pickup-delivery" %}
 {{ page_head(order_label(b), b.shop_name ~ " · " ~ b.service_name, back=("My orders", url_for('customer.my_orders')), pill_status=b.status) }}
+
 <div class="cols">
   <div class="stack">
     <section class="card">
@@ -16,6 +18,7 @@
       {% if b.address %}{{ row("Address", b.address) }}{% else %}{{ row("Shop address", b.shop_address) }}{% endif %}
       {% if b.notes %}<div class="notes"><span>Special instructions</span><span>{{ b.notes }}</span></div>{% endif %}
     </section>
+
     <section class="card">
       <h2>Price</h2>
       {{ row("Laundry (" ~ ("actual " if not price.estimated else "est. ") ~ price.weight|kg ~ " " ~ b.unit ~ ")", price.laundry|peso(2)) }}
@@ -24,7 +27,8 @@
       {{ row("Estimated total" if price.estimated else "Total", price.total|peso(2), "total") }}
       {% if price.estimated %}<p class="muted small">The final price is set when the shop weighs your laundry.</p>{% endif %}
     </section>
-    {% if b.status != "Pending" %}
+
+    {% if b.status not in ("Pending", "Cancelled", "Rejected") %}
     <section class="card gap-12">
       <div class="card-head"><h2>Payment</h2>{{ pill(b.payment_status) }}</div>
       {% if b.payment_status == "Paid" %}
@@ -38,15 +42,72 @@
     </section>
     {% endif %}
   </div>
+
   <section class="card">
     <h2>Status</h2>
-    <ol class="timeline">
-      {% for s in steps %}
-      <li class="{{ 'current' if loop.index0 == current and s != 'Completed' else ('todo' if loop.index0 > current else '') }}">
-        <span class="dot"></span>{{ s }}</li>
-      {% endfor %}
-    </ol>
-    {% if b.status == "Pending" %}<p class="muted small">Your Order ID is created once the shop accepts.</p>{% endif %}
+    
+    {% if b.status == "Cancelled" %}
+      <div class="stack" style="gap: 8px; margin-top: 12px;">
+        <div>{{ pill("Cancelled") }}</div>
+        <p class="muted small">Your booking request was cancelled.</p>
+      </div>
+    {% elif b.status == "Rejected" %}
+      <div class="stack" style="gap: 8px; margin-top: 12px;">
+        <div>{{ pill("Rejected") }}</div>
+        <p class="muted small">This booking request was rejected by the shop.</p>
+      </div>
+    {% else %}
+      <ol class="timeline">
+        {% for s in steps %}
+        <li class="{{ 'current' if loop.index0 == current and s != 'Completed' else ('todo' if loop.index0 > current else '') }}">
+          <span class="dot"></span>{{ s }}
+        </li>
+        {% endfor %}
+      </ol>
+    {% endif %}
+
+    {% if b.status == "Pending" %}
+      <p class="muted small" style="margin-bottom: 16px;">Your Order ID is created once the shop accepts.</p>
+      
+      <button type="button" class="btn btn-danger btn-block" onclick="document.getElementById('cancel-modal').showModal()">
+        Cancel Booking
+      </button>
+
+      <dialog id="cancel-modal" class="custom-modal">
+        <div class="stack" style="gap: 16px;">
+          <h3 style="margin: 0; font-size: 1.25rem;">Confirm Cancellation</h3>
+          <p class="muted" style="margin: 0; font-size: 0.95rem;">Are you sure you want to cancel this booking? This action cannot be undone.</p>
+          
+          <div style="display: flex; gap: 12px; justify-content: flex-end; margin-top: 12px;">
+            <button type="button" class="btn btn-secondary" onclick="document.getElementById('cancel-modal').close()">
+              Keep Booking
+            </button>
+            
+            <form action="{{ url_for('customer.cancel_booking', booking_id=b.id) }}" method="POST" style="margin: 0;">
+              <button type="submit" class="btn btn-danger">Yes, Cancel</button>
+            </form>
+          </div>
+        </div>
+      </dialog>
+    {% endif %}
   </section>
 </div>
+
+<style>
+  .custom-modal {
+    border: none;
+    border-radius: 12px;
+    padding: 24px;
+    max-width: 420px;
+    width: 90%;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.25);
+    background: #ffffff;
+    margin: auto;
+  }
+
+  .custom-modal::backdrop {
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+  }
+</style>
 {% endblock %}
