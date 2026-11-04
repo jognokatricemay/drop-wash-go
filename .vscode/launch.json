@@ -1,0 +1,49 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "0. Test XAMPP MySQL Connection",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/test_xampp_connection.py",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "1. Inspect Database (Report)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/inspect_db.py",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "2. Seed Database (Initialize)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/seed.py",
+      "args": ["--init"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "3. Add 1,000 Laundry Orders Indefinitely",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/seed.py",
+      "args": ["--add", "1000"],
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "4. CRUD & Dashboard Demo",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/crud_example.py",
+      "console": "integratedTerminal"
+    },
+    {
+      "name": "5. Clear Database (Reset)",
+      "type": "debugpy",
+      "request": "launch",
+      "program": "${workspaceFolder}/clear_db.py",
+      "console": "integratedTerminal"
+    }
+  ]
+}

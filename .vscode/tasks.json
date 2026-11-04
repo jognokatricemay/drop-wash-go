@@ -1,0 +1,39 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Inspect Database Status",
+      "type": "shell",
+      "command": ".\\pyrun.bat inspect_db.py",
+      "problemMatcher": [],
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      }
+    },
+    {
+      "label": "Seed Database (Base Records)",
+      "type": "shell",
+      "command": ".\\pyrun.bat seed.py --init",
+      "problemMatcher": []
+    },
+    {
+      "label": "Add 1,000 Records Indefinitely",
+      "type": "shell",
+      "command": ".\\pyrun.bat seed.py --add 1000",
+      "problemMatcher": []
+    },
+    {
+      "label": "Clear Database (Reset to 0 rows)",
+      "type": "shell",
+      "command": ".\\pyrun.bat clear_db.py",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Step-by-Step Tutorial",
+      "type": "shell",
+      "command": ".\\pyrun.bat step_by_step_tutorial.py",
+      "problemMatcher": []
+    }
+  ]
+}

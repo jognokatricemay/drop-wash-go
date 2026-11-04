@@ -1,0 +1,12 @@
+{
+  "python.defaultInterpreterPath": "C:\\Users\\sam\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+  "python.terminal.activateEnvironment": true,
+  "sqltools.connections": [
+    {
+      "name": "Booking System (SQLite)",
+      "dialect": "SQLite",
+      "database": "${workspaceFolder}/booking_system.db"
+    }
+  ],
+  "python.terminal.useEnvFile": true
+}
