@@ -14,6 +14,7 @@
   </div>
   <span class="spacer"></span>
   <input class="search sm" type="search" name="q" value="{{ q }}" placeholder="Search Order ID or customer" aria-label="Search Order ID or customer">
+  <button type="submit" class="btn">Search</button>
 </form>
 <section class="card">
   {% if rows %}
@@ -41,4 +42,13 @@
   <p class="muted">No orders found.</p>
   {% endif %}
 </section>
+<script>
+  const box = document.querySelector(".toolbar .search");
+  let timer;
+  box.addEventListener("input", () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => box.form.submit(), 400);   // maghihintay ng 0.4s pagkatapos mag-type
+  });
+  if (box.value) { box.focus(); box.setSelectionRange(box.value.length, box.value.length); }
+</script>
 {% endblock %}

@@ -5,7 +5,7 @@ Owners:  Member 3 — shops, shop details, booking, review, request sent
 from datetime import date, datetime, timedelta, time
 from decimal import Decimal, InvalidOperation
 
-from flask import Blueprint, abort, g, redirect, render_template, request, session, url_for
+from flask import Blueprint, abort, g, redirect, render_template, request, session, url_for, flash
 
 from .db import execute, query
 from .helpers import BOOKING_SQL, HANDLING, TIME_SLOTS, booking_price, login_required, now_ph, today_ph
@@ -81,8 +81,10 @@ def slot_error(shop, when, slot):
     hours = parse_hours(shop["opening_hours"])
     if hours:   
         opens, closes = hours
+        if when == today_ph() and now_ph().time() >= closes:
+            return "This shop is already closed for today. Please choose another date."
         if start < opens or end > closes:
-            return (f"This shop is open from {opens:%I:%M %p} until {closes:%I:%M %p}. "
+            return (f"This shop is open from {opens:%I:%M %p} to {closes:%I:%M %p}. "
                     "Please choose a time within these hours.")
     if when == today_ph() and start <= now_ph().time():
         return "This time slot has already passed. Please choose a later time or another date."
@@ -195,7 +197,7 @@ def review():
         form_data = {k: str(v) for k, v in session["draft"].items()}
         errors, _, _ = validate_booking(shop, form_data, offered_for(shop))
         if errors:
-            flash("May kailangang ayusin sa booking mo. Paki-edit at subukan ulit.", "error")
+            flash("Something in your booking needs to be fixed. Please edit it and try again.", "error")
             return redirect(url_for("customer.book", shop_id=shop["id"]))
         new_id = execute(
             """INSERT INTO bookings (customer_id, shop_id, service_name, rate, unit, handling, delivery_fee,
