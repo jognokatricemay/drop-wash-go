@@ -10,7 +10,9 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app import create_app  # noqa: E402
-from app.db import init_db_command, query  # noqa: E402
+from app.db import execute, init_db_command, query  # noqa: E402
+from app.helpers import schedule_label, time_input_value, time_label  # noqa: E402
+from app.staff import order_code  # noqa: E402
 
 app = create_app()
 app.config["TESTING"] = True
@@ -21,6 +23,17 @@ def check(label, ok, detail=""):
     print(("PASS " if ok else "FAIL ") + label + (f"  ({detail})" if detail and not ok else ""))
     if not ok:
         failures.append(label)
+
+
+check("shop-based order ID prefixes",
+      [order_code(name, 12) for name in ("Clean & Fresh", "Mama Fe Laundry", "Wash Hub")] ==
+      ["CNF-00012", "MFL-00012", "WH-00012"])
+check("time picker handles current and legacy values",
+      [time_input_value(value) for value in ("13:30", "9-11 AM", "1-3 PM")] ==
+      ["13:30", "09:00", "13:00"] and time_label("13:30") == "1:30 PM")
+check("delivery schedule date and time formatting",
+      schedule_label("2026-11-04T15:30") == "Nov 4 · 3:30 PM"
+      and schedule_label("Tomorrow · 3-6 PM") == "Tomorrow · 3-6 PM")
 
 
 def get(client, url, expect=200, contains=None):
@@ -34,6 +47,10 @@ with app.app_context():
     app.test_cli_runner().invoke(init_db_command)
 
 guest = app.test_client()
+guest.get("/favicon.ico")  # a browser asks for this by itself; it must not leave a message behind
+get(guest, "/", contains="How will you use")
+check("favicon request does not leave a 'page doesn't exist' message", "That page doesn" not in guest.get("/login").get_data(as_text=True))
+check("a mistyped page still shows the message", "That page doesn" in guest.get("/no-such-page", follow_redirects=True).get_data(as_text=True))
 get(guest, "/", contains="How will you use")
 get(guest, "/login", contains="Welcome back")
 get(guest, "/create-account", contains="Create your account")
@@ -52,6 +69,8 @@ r = c.post("/login", data={"mobile": "09171234567", "password": "wrong"})
 check("wrong password rejected", "Wrong mobile number or password" in r.get_data(as_text=True))
 r = c.post("/login", data={"mobile": "0917 123 4567", "password": "password123"})
 check("customer login", r.status_code == 302 and r.headers["Location"].endswith("/home"))
+check("unread notification dot shown in navigation",
+      "nav-unread-dot" in c.get("/home").get_data(as_text=True))
 for url, text in [("/home", "Hi, Juan"), ("/shops", "Wash Hub"), ("/shops/3", "No pickup"), ("/shops/1/book", "Review booking"),
                   ("/shops/3/book", "only offers drop-off"), ("/orders", "#DWG-00483"), ("/orders?tab=past", "Booking request"),
                   ("/orders/483", "Pay on delivery"), ("/orders/484", "could not accept"), ("/notifications", "Booking accepted"),
@@ -61,9 +80,9 @@ check("customer can't open staff pages", c.get("/shop/dashboard").status_code ==
 check("customer can't open other's order", c.get("/orders/482").status_code == 302)  # 404 -> redirect home
 
 r = c.post("/shops/1/book", data={"service_id": "1", "handling": "pickup-delivery", "est_weight": "", "requested_date": "",
-                                  "requested_time": "9-11 AM", "address": ""})
+                                  "requested_time": "", "address": ""})
 html = r.get_data(as_text=True)
-check("booking validation errors shown", "Please fix 3 fields" in html, re.findall(r"Please fix \d+ \w+", html))
+check("booking validation errors shown", "Please fix 4 fields" in html, re.findall(r"Please fix \d+ \w+", html))
 tomorrow = (date.today() + timedelta(days=1)).isoformat()
 r = c.post("/shops/1/book", data={"service_id": "1", "handling": "pickup-delivery", "est_weight": "4", "requested_date": tomorrow,
                                   "requested_time": "1-3 PM", "address": "123 Mabini St., Balete", "notes": "No softener"})
@@ -75,7 +94,37 @@ new_id = int(r.headers["Location"].rsplit("/", 1)[1])
 get(c, f"/book/sent/{new_id}", contains="Request sent")
 r = c.post("/shops/3/book", data={"service_id": "7", "handling": "pickup", "est_weight": "3", "requested_date": tomorrow,
                                   "requested_time": "9-11 AM", "address": "x"})
-check("unsupported handling rejected (FR-11)", "offer that option" in r.get_data(as_text=True))
+check("unsupported handling rejected (FR-11)", "offer the selected option" in r.get_data(as_text=True))
+
+# ---- booking validation messages (guest, weight, date, closing time)
+r = guest.get("/shops/1/book")
+check("guest must log in to book", r.status_code == 302 and "/login" in r.headers["Location"] and "next=" in r.headers["Location"])
+get(guest, "/shops", contains="no-shops")
+get(guest, "/shops", contains='data-value="pickup"')
+get(c, "/shops/1/book", contains=f'min="{date.today().isoformat()}"')
+book = {"service_id": "1", "handling": "pickup-delivery", "est_weight": "4", "requested_date": tomorrow,
+        "requested_time": "1-3 PM", "address": "123 Mabini St., Balete"}
+for label, change, words in [
+    ("weight 0 is refused", {"est_weight": "0"}, "greater than 0"),
+    ("negative weight is refused", {"est_weight": "-2"}, "greater than 0"),
+    ("weight over 100 is refused", {"est_weight": "101"}, "up to 100 kg"),
+    ("weight that is not a number is refused", {"est_weight": "abc"}, "as a number"),
+    ("past date is refused", {"requested_date": (date.today() - timedelta(days=1)).isoformat()}, "Past dates are not allowed"),
+    ("pickup needs an address", {"address": " "}, "pick up your laundry"),
+]:
+    r = c.post("/shops/1/book", data={**book, **change})
+    check(label, words in r.get_data(as_text=True))
+
+# a shop that closes at 12 PM can't be booked for the 1-3 PM slot
+with app.app_context():
+    old_hours = query("SELECT opening_hours FROM shops WHERE id=1", one=True)["opening_hours"]
+    execute("UPDATE shops SET opening_hours=%s WHERE id=1", ["8:00 AM - 12:00 PM"])
+r = c.post("/shops/1/book", data=book)
+check("booking after closing time is refused", "open from" in r.get_data(as_text=True) and "12:00 PM" in r.get_data(as_text=True))
+r = c.post("/shops/1/book", data={**book, "requested_time": "9-11 AM"})
+check("booking before closing time is accepted", r.status_code == 302)
+with app.app_context():
+    execute("UPDATE shops SET opening_hours=%s WHERE id=1", [old_hours])
 
 # ---------- staff ----------
 s = app.test_client()
@@ -86,12 +135,25 @@ for url, text in [("/shop/dashboard", "Needs attention"), ("/shop/requests", "Ju
                   ("/shop/orders/482/status", "Ready for Delivery"), ("/shop/orders/482/paid", "Amount due"),
                   ("/shop/profile", "Mama Fe Laundry"), ("/shop/shop-info", "Save changes")]:
     get(s, url, contains=text)
+get(s, "/shop/dashboard", contains="Pickups today")
+pickup_page = get(s, "/shop/pickups/today", contains="Juan Dela Cruz").get_data(as_text=True)
+check("pickup details are scoped to this shop", "123 Mabini St." in pickup_page
+      and "#DWG-00482" not in pickup_page)
+for username in ("cf.staff", "washhub"):
+    shop_staff = app.test_client()
+    shop_staff.post("/shop/login", data={"username": username, "password": "password123"})
+    dashboard = shop_staff.get("/shop/dashboard").get_data(as_text=True)
+    check(f"{username} has a shop-specific pickup counter", "Pickups today" in dashboard)
+    check(f"{username} sees only their own today's pickups",
+          "Juan Dela Cruz" not in shop_staff.get("/shop/pickups/today").get_data(as_text=True))
+get(s, "/shop/requests/486", contains='name="confirmed_schedule" type="time"')
 check("staff can't see other shop's booking", s.get("/shop/orders/481").status_code == 302)
 
-r = s.post(f"/shop/requests/{new_id}", data={"action": "accept", "confirmed_schedule": "2-4 PM"})
+r = s.post(f"/shop/requests/{new_id}", data={"action": "accept", "confirmed_schedule": "14:00"})
 check("accept booking", r.status_code == 302 and r.headers["Location"].endswith(f"/requests/{new_id}/accepted"))
-code = f"DWG-{new_id:05d}"
+code = f"MFL-{new_id:05d}"
 get(s, f"/shop/requests/{new_id}/accepted", contains=code)
+get(c, f"/orders/{new_id}", contains="2:00 PM")
 r = s.post("/shop/requests/486", data={"action": "reject", "reason": ""})
 check("reject needs a reason", "Give the customer a reason" in r.get_data(as_text=True))
 r = s.post("/shop/requests/486", data={"action": "reject", "reason": "Fully booked"})
@@ -99,8 +161,10 @@ check("reject booking", r.status_code == 302)
 
 r = s.post(f"/shop/orders/{new_id}/weight", data={"actual_weight": "4.5"}, follow_redirects=True)
 check("confirm weight -> processing", "Processing" in r.get_data(as_text=True) and "₱207.50" in r.get_data(as_text=True))
-r = s.post(f"/shop/orders/{new_id}/status", data={"status": "Ready for Delivery", "delivery_schedule": "Tomorrow · 3-6 PM"}, follow_redirects=True)
+r = s.post(f"/shop/orders/{new_id}/status", data={"status": "Ready for Delivery", "delivery_date": tomorrow,
+                                                 "delivery_time": "15:30"}, follow_redirects=True)
 check("update status", "is now Ready for Delivery" in r.get_data(as_text=True))
+check("customer sees delivery date and time", "3:30 PM" in c.get(f"/orders/{new_id}").get_data(as_text=True))
 r = s.post(f"/shop/orders/{new_id}/paid", data={"method": "cash", "amount_received": "100"})
 check("paid amount too small rejected", "less than" in r.get_data(as_text=True))
 r = s.post(f"/shop/orders/{new_id}/paid", data={"method": "cash", "amount_received": "250"}, follow_redirects=True)
@@ -115,6 +179,108 @@ r = c.get(f"/orders/{new_id}")
 html = r.get_data(as_text=True)
 check("customer sees order ID, status and paid", code in html and "Ready for Delivery" in html and "Paid" in html)
 get(c, "/notifications", contains="Your laundry is being processed")
+
+# ---- forgot password (customer + shop), by security question
+get(guest, "/forgot-password", contains="Reset your password")
+get(guest, "/shop/forgot-password", contains="Reset your password")
+get(guest, "/login", contains="Forgot password?")
+get(guest, "/shop/login", contains="Forgot password?")
+
+fp = app.test_client()
+r = fp.post("/forgot-password", data={"identifier": "09999999999"})
+check("forgot: unknown number is refused", "No account found" in r.get_data(as_text=True))
+r = fp.post("/forgot-password", data={"identifier": "0917 123 4567"})
+check("forgot: shows the security question", "What is your favorite food?" in r.get_data(as_text=True))
+r = fp.post("/forgot-password", data={"answer": "pizza", "new_password": "newpass123", "confirm_password": "newpass123"})
+check("forgot: wrong answer is refused", "doesn" in r.get_data(as_text=True) and "match" in r.get_data(as_text=True))
+r = fp.post("/forgot-password", data={"answer": "adobo", "new_password": "short", "confirm_password": "short"})
+check("forgot: short password is refused", "at least 8" in r.get_data(as_text=True))
+r = fp.post("/forgot-password", data={"answer": " ADOBO ", "new_password": "newpass123", "confirm_password": "newpass123"})
+check("forgot: right answer (any case) changes the password", r.status_code == 302 and r.headers["Location"].endswith("/login"))
+r = app.test_client().post("/login", data={"mobile": "09171234567", "password": "newpass123"})
+check("forgot: can log in with the new password", r.status_code == 302 and r.headers["Location"].endswith("/home"))
+r = app.test_client().post("/login", data={"mobile": "09171234567", "password": "password123"})
+check("forgot: old password no longer works", r.status_code == 200)
+
+fs = app.test_client()
+r = app.test_client().post("/shop/forgot-password", data={"identifier": "FE.REYES"})
+check("forgot (shop): username is case-sensitive", "No account found" in r.get_data(as_text=True))
+r = fs.post("/shop/forgot-password", data={"identifier": "fe.reyes"})
+check("forgot (shop): shows the security question", "What is your favorite food?" in r.get_data(as_text=True))
+r = fs.post("/shop/forgot-password", data={"answer": "adobo", "new_password": "shoppass123", "confirm_password": "shoppass123"})
+check("forgot (shop): changes the password", r.status_code == 302 and r.headers["Location"].endswith("/shop/login"))
+r = app.test_client().post("/shop/login", data={"username": "fe.reyes", "password": "shoppass123"})
+check("forgot (shop): can log in with the new password", r.status_code == 302)
+
+# a customer id can't be used on the shop page (and the other way around)
+fx = app.test_client()
+fx.post("/forgot-password", data={"identifier": "09181112222"})
+r = fx.post("/shop/forgot-password", data={"answer": "adobo", "new_password": "hacked1234", "confirm_password": "hacked1234"})
+check("forgot: customer session can't reset on the shop page", r.status_code == 302 and "/shop/forgot-password" in r.headers["Location"])
+
+# too many wrong answers locks that attempt
+fl = app.test_client()
+fl.post("/forgot-password", data={"identifier": "09181112222"})
+for _ in range(5):
+    fl.post("/forgot-password", data={"answer": "wrong", "new_password": "x", "confirm_password": "x"})
+r = fl.post("/forgot-password", data={"answer": "adobo", "new_password": "letmein123", "confirm_password": "letmein123"})
+check("forgot: locked after 5 wrong answers", "Too many wrong answers" in r.get_data(as_text=True))
+
+# sign-up now asks for a security question
+r = app.test_client().post("/create-account", data={"full_name": "Ana Test", "mobile": "09170001111", "password": "password123",
+                                                    "confirm_password": "password123"})
+check("sign-up: security question is required", "Choose a security question" in r.get_data(as_text=True))
+nc = app.test_client()
+r = nc.post("/create-account", data={"full_name": "Ana Test", "mobile": "09170001111", "password": "password123",
+                                     "confirm_password": "password123", "security_question": "What town were you born in?",
+                                     "security_answer": "Balete"})
+check("sign-up: works with a security question", r.status_code == 302)
+r = app.test_client().post("/forgot-password", data={"identifier": "09170001111"})
+check("sign-up: new account can use forgot password", "What town were you born in?" in r.get_data(as_text=True))
+r = app.test_client().post("/shop/register", data={"shop_name": "Test Shop", "contact_number": "09170002222", "address": "Somewhere",
+                                                   "owner_name": "Owner", "username": "test.shop", "password": "password123",
+                                                   "confirm_password": "password123"})
+check("shop register: security question is required", "Choose a security question" in r.get_data(as_text=True))
+
+# ---- customer: cancel a booking, edit profile and address (Member 4)
+with app.app_context():
+    mine = query("SELECT id, status FROM bookings WHERE customer_id=1 ORDER BY id")
+    pending = next(b["id"] for b in mine if b["status"] == "Pending")
+    not_pending = next(b["id"] for b in mine if b["status"] != "Pending")
+    before = query("SELECT status FROM bookings WHERE id=%s", [not_pending], one=True)["status"]
+r = c.post(f"/orders/{not_pending}/cancel")
+with app.app_context():
+    after = query("SELECT status FROM bookings WHERE id=%s", [not_pending], one=True)["status"]
+check("only a Pending booking can be cancelled", after == before)
+get(c, f"/orders/{pending}", contains="Cancel Booking")
+r = c.post(f"/orders/{pending}/cancel")
+check("cancelling a Pending booking redirects to Past orders", r.status_code == 302 and "tab=past" in r.headers["Location"])
+get(c, "/orders?tab=past", contains="Cancelled")
+r = get(c, "/orders", contains="My orders")
+check("cancelled booking leaves the Active tab", f"/orders/{pending}" not in r.get_data(as_text=True))
+get(c, f"/orders/{pending}", contains="was cancelled")
+r = guest.post(f"/orders/{pending}/cancel")
+check("guest can't cancel a booking", r.status_code == 302 and "/login" in r.headers["Location"])
+
+get(c, "/profile/edit-info", contains="Edit personal information")
+get(c, "/profile/edit-address", contains="Saved")
+for label, change, words in [
+    ("edit info: mobile must be 11 digits starting 09", {"mobile": "12345"}, "11 digits starting with 09"),
+    ("edit info: mobile already used is refused", {"mobile": "09181112222"}, "already in use"),
+    ("edit info: empty name is refused", {"full_name": " "}, "Full name is required"),
+]:
+    r = c.post("/profile/edit-info", data={"full_name": "Juan Dela Cruz", "mobile": "09171234567", "email": "", **change})
+    check(label, words in r.get_data(as_text=True))
+r = c.post("/profile/edit-info", data={"full_name": "Juan D. Cruz", "mobile": "09171234567", "email": "juan@example.com"})
+check("edit info: valid change is saved", r.status_code == 302)
+get(c, "/profile", contains="Juan D. Cruz")
+r = c.post("/profile/edit-address", data={"address": " "})
+check("edit address: empty address is refused", "Address is required" in r.get_data(as_text=True))
+r = c.post("/profile/edit-address", data={"address": "77 Sampaguita St., Balete"})
+check("edit address: valid address is saved", r.status_code == 302)
+get(c, "/profile", contains="77 Sampaguita St.")
+r = guest.get("/profile/edit-info")
+check("guest can't open edit info", r.status_code == 302 and "/login" in r.headers["Location"])
 
 with app.app_context():
     shop = query("SELECT offers_pickup, delivery_fee FROM shops WHERE id=1", one=True)

@@ -11,7 +11,7 @@
   <div class="info-box">
     {{ row("Shop", b.shop_name) }}
     {{ row("Service", b.service_name) }}
-    {{ row("Requested", b.requested_date|short_date ~ " · " ~ b.requested_time) }}
+    {{ row("Requested", b.requested_date|short_date ~ " · " ~ (b.requested_time|time_label)) }}
     {{ row("Payment", "Pay on delivery" if b.handling == "pickup-delivery" else "Pay at the counter") }}
     {{ row("Status", pill(b.status)) }}
   </div>

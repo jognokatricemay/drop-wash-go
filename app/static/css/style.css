@@ -108,6 +108,10 @@ legend { padding: 0; }
   color: var(--sidebar-nav);
   font-weight: 500;
 }
+.nav a .nav-unread-dot, .bottomnav a .nav-unread-dot {
+  width: 9px; height: 9px; border-radius: 50%; background: var(--unread); flex: none;
+}
+.nav a .nav-unread-dot { margin-left: auto; }
 .nav a:hover { background: rgba(255, 255, 255, .06); }
 .nav a.active { background: var(--nav-active-bg); color: var(--nav-active-txt); font-weight: 600; }
 .nav .icon { display: none; width: 24px; height: 24px; }
@@ -225,6 +229,7 @@ button.link { background: none; border: 0; padding: 0; cursor: pointer; text-ali
 .pill.processing { background: var(--processing-bg); color: var(--processing-txt); }
 .pill.ready { background: var(--ready-bg); color: var(--ready-txt); }
 .pill.completed { background: var(--completed-bg); color: var(--completed-txt); }
+.pill.cancelled{ background: var(--completed-bg); color: var(--completed-txt);}
 .pill.rejected, .pill.unpaid { background: var(--unpaid-bg); color: var(--unpaid-txt); }
 .pill.paid { background: var(--paid-bg); color: var(--paid-txt); }
 
@@ -397,7 +402,7 @@ select.input {
 .quick-link:hover, .shop-card:hover { border-color: var(--brand); }
 .quick-link h3 { font-size: 17px; font-weight: 600; }
 
-.stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; }
+.stats { display: grid; grid-template-columns: repeat(5, 1fr); gap: 20px; }
 .stat { display: flex; flex-direction: column; gap: 8px; padding: 22px 24px; background: #fff; border: 1px solid var(--border); border-radius: 18px; }
 .stat .bar { width: 32px; height: 4px; border-radius: 999px; }
 .stat .num { font-family: var(--font-title); font-size: 32px; font-weight: 700; line-height: 1.1; }
@@ -405,6 +410,7 @@ select.input {
 .stat .bar.accepted { background: var(--accepted-txt); }
 .stat .bar.processing { background: var(--processing-txt); }
 .stat .bar.ready { background: var(--ready-txt); }
+.stat .bar.pickup { background: var(--brand); }
 
 .attention { display: flex; gap: 14px; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--line); }
 .attention:last-child { border-bottom: 0; padding-bottom: 0; }
@@ -559,10 +565,12 @@ select.input {
     border-top: 1px solid var(--border);
   }
   .bottomnav a {
+    position: relative;
     flex: 1;
     display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px;
     font-size: 11px; font-weight: 600; color: var(--muted);
   }
+  .bottomnav a .nav-unread-dot { position: absolute; top: 8px; right: calc(50% - 20px); }
   .bottomnav svg { width: 24px; height: 24px; }
   .bottomnav svg path { fill: currentColor; }
   .bottomnav a.active { color: var(--brand); }

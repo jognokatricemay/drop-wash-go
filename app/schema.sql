@@ -38,6 +38,8 @@ CREATE TABLE users (
   username       VARCHAR(60),
   password_hash  VARCHAR(255) NOT NULL,
   address        VARCHAR(200),
+  security_question    VARCHAR(120) NULL,   -- for the "Forgot password?" page
+  security_answer_hash VARCHAR(255) NULL,   -- the answer is hashed, like a password
   shop_id        INT NULL,
   created_at     TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   UNIQUE KEY uq_mobile (mobile),
@@ -76,7 +78,7 @@ CREATE TABLE bookings (
   delivery_schedule   VARCHAR(60) NULL,
   address             VARCHAR(200) NULL,
   notes               VARCHAR(255) NULL,
-  status              ENUM('Pending','Accepted','Processing','Ready for Pickup','Ready for Delivery','Completed','Rejected')
+  status              ENUM('Pending','Accepted','Processing','Ready for Pickup','Ready for Delivery','Completed','Rejected', 'Cancelled')
                       NOT NULL DEFAULT 'Pending',
   reject_reason       VARCHAR(200) NULL,
   payment_status      ENUM('Unpaid','Paid') NOT NULL DEFAULT 'Unpaid',

@@ -48,7 +48,8 @@
           <td data-label="Shop">{{ b.shop_name }}</td>
           <td data-label="Handling">{{ b.handling|handling }}{{ " · " ~ b.actual_weight|kg ~ " kg" if b.actual_weight }}</td>
           <td data-label="Date">{{ b.requested_date|short_date }}</td>
-          <td data-label="Status"><span>{{ pill(b.status) }}</span></td>
+          <td data-label="Status">{{ pill(b.status) }}</td>
+        </tr>
       {% endfor %}
       </tbody>
     </table>

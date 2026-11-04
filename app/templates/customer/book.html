@@ -31,7 +31,7 @@
     {% endif %}
     {{ field("Estimated weight (kg)", "est_weight", form.get("est_weight"), "number", errors, "e.g. 3", 'min="0.5" step="0.5"') }}
     <div class="grid-2">
-      {{ field('<span data-when>Pickup</span> date', "requested_date", form.get("requested_date"), "date", errors) }}
+      {{ field('<span data-when>Pickup</span> date', "requested_date", form.get("requested_date"), "date", errors, "", 'min="' ~ today ~ '"') }}
       {{ select('Time', "requested_time", time_opts, form.get("requested_time"), errors) }}
     </div>
     <div data-show="pickup">{{ field("Pickup &amp; delivery address", "address", form.get("address"), errors=errors) }}</div>

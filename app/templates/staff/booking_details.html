@@ -14,7 +14,7 @@
     {{ row("Handling", b.handling|handling) }}
     {% if b.address %}{{ row("Address", b.address) }}{% endif %}
     {% if b.notes %}<div class="notes"><span>Special instructions</span><span>{{ b.notes }}</span></div>{% endif %}
-    {{ row("Requested", b.requested_date|short_date ~ " · " ~ b.requested_time) }}
+    {{ row("Requested", b.requested_date|short_date ~ " · " ~ (b.requested_time|time_label)) }}
     {{ row("Est. total", price.total|peso) }}
     {{ row("Payment", ("Pays on delivery" if b.handling == "pickup-delivery" else "Pays at the counter") ~ " (" ~ payment_methods(b) ~ ")") }}
   </section>
@@ -22,13 +22,13 @@
   <form class="stack" method="post">
     <section class="card">
       <h2>Confirm schedule</h2>
-      {{ field("Confirmed " ~ ("drop-off" if b.handling == "drop-off" else "pickup") ~ " time (sent to customer)", "confirmed_schedule", b.requested_time) }}
+      {{ field("Confirmed " ~ ("drop-off" if b.handling == "drop-off" else "pickup") ~ " time (sent to customer)", "confirmed_schedule", confirmed_time|time_input, "time", errors, extra='required') }}
       <p class="muted small">Change the time if the requested one does not work. Requested date: {{ b.requested_date|short_date }}.</p>
       <hr class="divider">
       {{ field("Reason (if rejecting)", "reason", errors=errors, placeholder="e.g. fully booked that day") }}
     </section>
     <button class="btn btn-primary btn-block" type="submit" name="action" value="accept">Accept booking</button>
-    <button class="btn btn-danger btn-block" type="submit" name="action" value="reject">Reject booking</button>
+    <button class="btn btn-danger btn-block" type="submit" name="action" value="reject" formnovalidate>Reject booking</button>
   </form>
   {% else %}
   <section class="card">

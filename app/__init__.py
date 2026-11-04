@@ -8,7 +8,7 @@ Blueprints (one file per part of the app, so team members don't edit the same fi
 import os
 
 from dotenv import load_dotenv
-from flask import Flask     
+from flask import Flask
 
 
 def create_app():
@@ -31,7 +31,6 @@ def create_app():
     if os.getenv("AUTO_INIT_DB") == "1":
         db.init_if_empty(app)
     helpers.init_app(app)
-    
     app.register_blueprint(auth.bp)
     app.register_blueprint(customer.bp)
     app.register_blueprint(staff.bp)

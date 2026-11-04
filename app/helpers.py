@@ -1,19 +1,37 @@
 """Shared helpers: who is logged in, role checks, prices and template filters."""
-from datetime import date
+import re
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from functools import wraps
+from datetime import time
 
 from flask import flash, g, redirect, request, session, url_for
 
 from .db import execute, query
 
+PH = timezone(timedelta(hours=8))  # Philippine time. The server (Render) runs on UTC, so don't use date.today() for bookings.
+
+
+def now_ph():
+    return datetime.now(PH)
+
+
+def today_ph():
+    return now_ph().date()
+
+
 HANDLING = {"drop-off": "Drop-off", "pickup": "Pickup", "pickup-delivery": "Pickup & Delivery"}
 
 PILL = {"Pending": "pending", "Accepted": "accepted", "Processing": "processing",
         "Ready for Pickup": "ready", "Ready for Delivery": "ready", "Completed": "completed",
-        "Rejected": "rejected", "Unpaid": "unpaid", "Paid": "paid"}
+        "Rejected": "rejected", "Cancelled": "cancelled", "Unpaid": "unpaid", "Paid": "paid"}
 
-TIME_SLOTS = ["8-10 AM", "9-11 AM", "1-3 PM", "3-6 PM"]
+TIME_SLOTS = {
+    "9-11 AM":  (time(9, 0),  time(11, 0)),
+    "11-1 PM":  (time(11, 0), time(13, 0)),
+    "1-3 PM":   (time(13, 0), time(15, 0)),
+    "3-5 PM":   (time(15, 0), time(17, 0)),
+}
 
 # A booking with its shop and customer details. Add WHERE / ORDER BY after it.
 BOOKING_SQL = """
@@ -93,9 +111,70 @@ def short_date(d):
     return f"{d:%b} {d.day}" if d else ""
 
 
+def time_input_value(value):
+    """Return a value supported by an HTML time input, including legacy time ranges."""
+    value = str(value or "").strip()
+    if re.fullmatch(r"\d{2}:\d{2}", value):
+        try:
+            datetime.strptime(value, "%H:%M")
+            return value
+        except ValueError:
+            return ""
+
+    match = re.fullmatch(
+        r"(\d{1,2})(?::(\d{2}))?\s*-\s*(\d{1,2})(?::(\d{2}))?\s*(AM|PM)",
+        value,
+        re.IGNORECASE,
+    )
+    if not match:
+        return ""
+    start_hour = int(match.group(1))
+    start_minute = int(match.group(2) or 0)
+    end_hour = int(match.group(3))
+    end_minute = int(match.group(4) or 0)
+    meridiem = match.group(5).upper()
+    if not 1 <= start_hour <= 12 or not 1 <= end_hour <= 12 or start_minute > 59 or end_minute > 59:
+        return ""
+
+    start_hour %= 12
+    end_hour %= 12
+    if meridiem == "PM":
+        start_hour += 12
+        end_hour += 12
+    if start_hour > end_hour:
+        start_hour += -12 if meridiem == "PM" else 12
+    return f"{start_hour:02d}:{start_minute:02d}"
+
+
+def time_label(value):
+    """Format stored HH:MM values for display while preserving legacy range labels."""
+    value = str(value or "").strip()
+    if not re.fullmatch(r"\d{2}:\d{2}", value):
+        return value
+    try:
+        parsed = datetime.strptime(value, "%H:%M")
+    except ValueError:
+        return value
+    hour = parsed.hour % 12 or 12
+    meridiem = "AM" if parsed.hour < 12 else "PM"
+    return f"{hour}:{parsed.minute:02d} {meridiem}"
+
+
+def schedule_label(value):
+    """Format new ISO delivery schedules while leaving older free-text schedules readable."""
+    value = str(value or "").strip()
+    try:
+        scheduled = datetime.strptime(value, "%Y-%m-%dT%H:%M")
+    except ValueError:
+        return value
+    return f"{short_date(scheduled.date())} · {time_label(scheduled.strftime('%H:%M'))}"
+
+
 def init_app(app):
     app.before_request(load_user)
     app.jinja_env.filters.update(peso=peso, kg=kg, short_date=short_date,
+                                 time_label=time_label, time_input=time_input_value,
+                                 schedule_label=schedule_label,
                                  pill=lambda s: PILL.get(s, "completed"),
                                  handling=lambda h: HANDLING.get(h, h))
     app.jinja_env.globals.update(order_label=order_label, booking_price=booking_price,
@@ -112,5 +191,9 @@ def init_app(app):
 
     @app.errorhandler(404)
     def not_found(_e):
+        # Browsers also ask for files by themselves (favicon.ico, robots.txt ...). Answer those quietly,
+        # or the message below would be saved and then show up on the next page the person opens.
+        if "." in request.path.rsplit("/", 1)[-1]:
+            return "", 404
         flash("That page doesn't exist.")
         return redirect(url_for("auth.welcome"))

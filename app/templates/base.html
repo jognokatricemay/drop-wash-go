@@ -22,12 +22,7 @@
 {%- set initials = (g.user.full_name.split()[0][0] ~ g.user.full_name.split()[-1][0]) if g.user and role == "customer"
                    else ((g.shop.name.replace("&", " ").split()[:2]|map("first")|join) if g.shop else "") -%}
 {%- macro navlink(label, text, href, ic) -%}
-<a href="{{ href }}" class="{{ 'active' if label == active }}" aria-current="{{ 'page' if label == active else 'false' }}">
-  {{ icon(ic) }}{{ text }}
-  {% if label == "Notifications" and g.unread_count and g.unread_count > 0 %}
-    <span class="badge-dot"></span>
-  {% endif %}
-</a>
+<a href="{{ href }}" class="{{ 'active' if label == active }}" aria-current="{{ 'page' if label == active else 'false' }}">{{ icon(ic) }}{{ text }}{% if role == "customer" and label == "Notifications" and unread %}<span class="nav-unread-dot" aria-label="{{ unread }} unread notifications"></span>{% endif %}</a>
 {%- endmacro -%}
 <!doctype html>
 <html lang="en">
