@@ -11,7 +11,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from app import create_app  # noqa: E402
 from app.db import init_db_command, query  # noqa: E402
-from app.helpers import time_input_value, time_label  # noqa: E402
+from app.helpers import schedule_label, time_input_value, time_label  # noqa: E402
 from app.staff import order_code  # noqa: E402
 
 app = create_app()
@@ -31,6 +31,9 @@ check("shop-based order ID prefixes",
 check("time picker handles current and legacy values",
       [time_input_value(value) for value in ("13:30", "9-11 AM", "1-3 PM")] ==
       ["13:30", "09:00", "13:00"] and time_label("13:30") == "1:30 PM")
+check("delivery schedule date and time formatting",
+      schedule_label("2026-11-04T15:30") == "Nov 4 · 3:30 PM"
+      and schedule_label("Tomorrow · 3-6 PM") == "Tomorrow · 3-6 PM")
 
 
 def get(client, url, expect=200, contains=None):
@@ -62,6 +65,8 @@ r = c.post("/login", data={"mobile": "09171234567", "password": "wrong"})
 check("wrong password rejected", "Wrong mobile number or password" in r.get_data(as_text=True))
 r = c.post("/login", data={"mobile": "0917 123 4567", "password": "password123"})
 check("customer login", r.status_code == 302 and r.headers["Location"].endswith("/home"))
+check("unread notification dot shown in navigation",
+      "nav-unread-dot" in c.get("/home").get_data(as_text=True))
 for url, text in [("/home", "Hi, Juan"), ("/shops", "Wash Hub"), ("/shops/3", "No pickup"), ("/shops/1/book", "Review booking"),
                   ("/shops/3/book", "only offers drop-off"), ("/orders", "#DWG-00483"), ("/orders?tab=past", "Booking request"),
                   ("/orders/483", "Pay on delivery"), ("/orders/484", "could not accept"), ("/notifications", "Booking accepted"),
@@ -96,6 +101,17 @@ for url, text in [("/shop/dashboard", "Needs attention"), ("/shop/requests", "Ju
                   ("/shop/orders/482/status", "Ready for Delivery"), ("/shop/orders/482/paid", "Amount due"),
                   ("/shop/profile", "Mama Fe Laundry"), ("/shop/shop-info", "Save changes")]:
     get(s, url, contains=text)
+get(s, "/shop/dashboard", contains="Pickups today")
+pickup_page = get(s, "/shop/pickups/today", contains="Juan Dela Cruz").get_data(as_text=True)
+check("pickup details are scoped to this shop", "123 Mabini St." in pickup_page
+      and "#DWG-00482" not in pickup_page)
+for username in ("cf.staff", "washhub"):
+    shop_staff = app.test_client()
+    shop_staff.post("/shop/login", data={"username": username, "password": "password123"})
+    dashboard = shop_staff.get("/shop/dashboard").get_data(as_text=True)
+    check(f"{username} has a shop-specific pickup counter", "Pickups today" in dashboard)
+    check(f"{username} sees only their own today's pickups",
+          "Juan Dela Cruz" not in shop_staff.get("/shop/pickups/today").get_data(as_text=True))
 get(s, "/shop/requests/486", contains='name="confirmed_schedule" type="time"')
 check("staff can't see other shop's booking", s.get("/shop/orders/481").status_code == 302)
 
@@ -111,8 +127,10 @@ check("reject booking", r.status_code == 302)
 
 r = s.post(f"/shop/orders/{new_id}/weight", data={"actual_weight": "4.5"}, follow_redirects=True)
 check("confirm weight -> processing", "Processing" in r.get_data(as_text=True) and "₱207.50" in r.get_data(as_text=True))
-r = s.post(f"/shop/orders/{new_id}/status", data={"status": "Ready for Delivery", "delivery_schedule": "Tomorrow · 3-6 PM"}, follow_redirects=True)
+r = s.post(f"/shop/orders/{new_id}/status", data={"status": "Ready for Delivery", "delivery_date": tomorrow,
+                                                 "delivery_time": "15:30"}, follow_redirects=True)
 check("update status", "is now Ready for Delivery" in r.get_data(as_text=True))
+check("customer sees delivery date and time", "3:30 PM" in c.get(f"/orders/{new_id}").get_data(as_text=True))
 r = s.post(f"/shop/orders/{new_id}/paid", data={"method": "cash", "amount_received": "100"})
 check("paid amount too small rejected", "less than" in r.get_data(as_text=True))
 r = s.post(f"/shop/orders/{new_id}/paid", data={"method": "cash", "amount_received": "250"}, follow_redirects=True)

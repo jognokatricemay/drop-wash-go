@@ -12,7 +12,7 @@
       <h2>Schedule &amp; address</h2>
       {% set when = b.requested_date|short_date ~ " · " ~ ((b.confirmed_schedule or b.requested_time)|time_label) %}
       {{ row(("Confirmed " if b.confirmed_schedule else "Requested ") ~ ("drop-off" if b.handling == "drop-off" else "pickup"), when) }}
-      {% if b.delivery_schedule %}{{ row("Delivery (set by shop)" if delivers else "Ready for pickup (set by shop)", b.delivery_schedule) }}{% endif %}
+      {% if b.delivery_schedule %}{{ row("Delivery (set by shop)" if delivers else "Ready for pickup (set by shop)", b.delivery_schedule|schedule_label) }}{% endif %}
       {% if b.address %}{{ row("Address", b.address) }}{% else %}{{ row("Shop address", b.shop_address) }}{% endif %}
       {% if b.notes %}<div class="notes"><span>Special instructions</span><span>{{ b.notes }}</span></div>{% endif %}
     </section>
@@ -31,7 +31,7 @@
         <p class="bold brand-txt">Paid · {{ price.total|peso(2) }}{{ " (" ~ ("GCash" if b.payment_method == "gcash" else "Cash") ~ ")" if b.payment_method }}</p>
       {% else %}
         <p class="bold brand-txt">{{ "Pay on delivery" if delivers else "Pay at the counter" }} · {{ price.total|peso(2) }}</p>
-        <p class="text-14">{{ "Pay the rider when your laundry arrives" if delivers else "Pay when you collect at " ~ b.shop_name }}{{ " on " ~ b.delivery_schedule if b.delivery_schedule }}.
+        <p class="text-14">{{ "Pay the rider when your laundry arrives" if delivers else "Pay when you collect at " ~ b.shop_name }}{{ " on " ~ (b.delivery_schedule|schedule_label) if b.delivery_schedule }}.
           {% if b.accepts_gcash and b.gcash_number %}Cash or GCash to {{ b.gcash_number }} ({{ b.gcash_name }}).{% else %}Cash only.{% endif %}</p>
         <p class="muted small">The shop marks this order as Paid once they receive your payment.</p>
       {% endif %}

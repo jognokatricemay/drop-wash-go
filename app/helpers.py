@@ -141,10 +141,21 @@ def time_label(value):
     return f"{hour}:{parsed.minute:02d} {meridiem}"
 
 
+def schedule_label(value):
+    """Format new ISO delivery schedules while leaving older free-text schedules readable."""
+    value = str(value or "").strip()
+    try:
+        scheduled = datetime.strptime(value, "%Y-%m-%dT%H:%M")
+    except ValueError:
+        return value
+    return f"{short_date(scheduled.date())} · {time_label(scheduled.strftime('%H:%M'))}"
+
+
 def init_app(app):
     app.before_request(load_user)
     app.jinja_env.filters.update(peso=peso, kg=kg, short_date=short_date,
                                  time_label=time_label, time_input=time_input_value,
+                                 schedule_label=schedule_label,
                                  pill=lambda s: PILL.get(s, "completed"),
                                  handling=lambda h: HANDLING.get(h, h))
     app.jinja_env.globals.update(order_label=order_label, booking_price=booking_price,

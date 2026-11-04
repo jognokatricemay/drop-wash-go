@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% from "_macros.html" import page_head, pill %}
+{% set role = "staff" %}{% set active = "Dashboard" %}
+{% block title %}Today's pickups{% endblock %}
+{% block content %}
+{{ page_head("Today's pickups", g.shop.name ~ " · " ~ today|short_date ~ " · includes pending, accepted, and processing pickup orders",
+             back=("Dashboard", url_for('staff.dashboard'))) }}
+<section class="card">
+  {% if rows %}
+  <div class="table-wrap">
+    <table class="table">
+      <thead><tr><th>Order / booking</th><th>Customer</th><th>Phone</th><th>Handling</th><th>Pickup time</th><th>Address</th><th>Service / weight</th><th>Payment</th><th>Status</th><th>Total</th><th>Notes</th><th></th></tr></thead>
+      <tbody>
+      {% for b in rows %}
+        {% set url = url_for('staff.booking_details', booking_id=b.id) if b.status == "Pending" else url_for('staff.order_details', booking_id=b.id) %}
+        <tr data-href="{{ url }}">
+          <td data-label="Order / booking"><a class="id-link" href="{{ url }}">{{ "#" ~ b.order_code if b.order_code else "Booking request" }}</a></td>
+          <td data-label="Customer">{{ b.customer_name }}</td>
+          <td data-label="Phone">{{ b.customer_mobile or "—" }}</td>
+          <td data-label="Handling">{{ b.handling|handling }}</td>
+          <td data-label="Pickup time">{{ b.requested_time|time_label }}</td>
+          <td data-label="Address">{{ b.address or "—" }}</td>
+          <td data-label="Service / weight">{{ b.service_name }} · {{ b.est_weight|kg }} {{ b.unit }}</td>
+          <td data-label="Payment">{{ b.payment_status }} · {{ payment_methods(b) }}</td>
+          <td data-label="Status">{{ pill(b.status) }}</td>
+          <td data-label="Total">{{ booking_price(b).total|peso(2) }}</td>
+          <td data-label="Notes">{{ b.notes or "—" }}</td>
+          <td class="no-label"><a class="btn btn-secondary btn-sm" href="{{ url }}">View details</a></td>
+        </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p class="muted">There are no active pickups scheduled for today.</p>
+  {% endif %}
+</section>
+{% endblock %}

@@ -13,6 +13,7 @@
   <a class="stat" href="{{ url_for('staff.orders', tab='active') }}"><span class="bar accepted"></span><span class="num">{{ counts.get("Accepted", 0) }}</span><span class="muted">Accepted</span></a>
   <a class="stat" href="{{ url_for('staff.orders', tab='active') }}"><span class="bar processing"></span><span class="num">{{ counts.get("Processing", 0) }}</span><span class="muted">Processing</span></a>
   <a class="stat" href="{{ url_for('staff.orders', tab='active') }}"><span class="bar ready"></span><span class="num">{{ ready }}</span><span class="muted">Ready</span></a>
+  <a class="stat" href="{{ url_for('staff.today_pickups') }}"><span class="bar pickup"></span><span class="num">{{ today_pickup_count }}</span><span class="muted">Pickups today</span></a>
 </section>
 <div class="cols dash">
   <section class="card">
@@ -55,7 +56,7 @@
       {% elif b.status.startswith("Ready") %}
       <a class="attention" href="{{ url_for('staff.order_details', booking_id=b.id) }}">
         <span class="circle gray">→</span>
-        <span><span class="a-title">#{{ b.order_code }} {{ b.status|lower }}</span><br><span class="a-sub muted">{{ b.delivery_schedule or "" }}{{ " · " if b.delivery_schedule }}collect {{ booking_price(b).total|peso(2) }}</span></span>
+        <span><span class="a-title">#{{ b.order_code }} {{ b.status|lower }}</span><br><span class="a-sub muted">{{ b.delivery_schedule|schedule_label if b.delivery_schedule else "" }}{{ " · " if b.delivery_schedule }}collect {{ booking_price(b).total|peso(2) }}</span></span>
       </a>
       {% endif %}
     {% endfor %}
