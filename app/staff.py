@@ -7,9 +7,11 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
 from .db import execute, query
-from .helpers import BOOKING_SQL, booking_price, login_required, notify, peso
+from .helpers import BOOKING_SQL, booking_price, login_required, notify, peso, time_input_value, time_label
 
 bp = Blueprint("staff", __name__, url_prefix="/shop")
+
+SHOP_ORDER_PREFIXES = {"clean & fresh": "CNF"}
 
 STATUSES = [
     ("Accepted", ""),
@@ -18,6 +20,15 @@ STATUSES = [
     ("Ready for Delivery", "Rider will bring it to the customer"),
     ("Completed", "Laundry received by the customer"),
 ]
+
+
+def order_code(shop_name, booking_id):
+    normalized_name = " ".join(shop_name.casefold().split())
+    prefix = SHOP_ORDER_PREFIXES.get(normalized_name)
+    if prefix is None:
+        words = ["".join(char for char in word if char.isalnum()) for word in shop_name.split()]
+        prefix = "".join(word[0] for word in words if word).upper()
+    return f"{prefix}-{booking_id:05d}"
 
 
 def shop_booking(booking_id):
@@ -58,8 +69,8 @@ def requests():
 def booking_details(booking_id):
     b = shop_booking(booking_id)
     errors = {}
+    confirmed_time = request.form.get("confirmed_schedule", "").strip() if request.method == "POST" else b["requested_time"]
     if request.method == "POST" and b["status"] == "Pending":
-        schedule = request.form.get("confirmed_schedule", "").strip() or b["requested_time"]
         if request.form.get("action") == "reject":
             reason = request.form.get("reason", "").strip()
             if not reason:
@@ -70,15 +81,19 @@ def booking_details(booking_id):
                 flash(f"Booking from {b['customer_name']} was rejected.")
                 return redirect(url_for("staff.requests"))
         else:
-            # FR-05: the Order ID is created only when the booking is accepted
-            code = f"DWG-{b['id']:05d}"
-            execute("UPDATE bookings SET status='Accepted', order_code=%s, confirmed_schedule=%s WHERE id=%s",
-                    [code, schedule, b["id"]])
-            what = "Drop-off" if b["handling"] == "drop-off" else "Pickup"
-            notify(b["customer_id"], b["id"], "success", "Booking accepted",
-                   f"#{code} · {what} confirmed {b['requested_date']:%b} {b['requested_date'].day}, {schedule}")
-            return redirect(url_for("staff.booking_accepted", booking_id=b["id"]))
-    return render_template("staff/booking_details.html", b=b, price=booking_price(b), errors=errors)
+            if not time_input_value(confirmed_time) or confirmed_time != time_input_value(confirmed_time):
+                errors["confirmed_schedule"] = "Choose a time."
+            else:
+                # FR-05: the Order ID is created only when the booking is accepted
+                code = order_code(b["shop_name"], b["id"])
+                execute("UPDATE bookings SET status='Accepted', order_code=%s, confirmed_schedule=%s WHERE id=%s",
+                        [code, confirmed_time, b["id"]])
+                what = "Drop-off" if b["handling"] == "drop-off" else "Pickup"
+                notify(b["customer_id"], b["id"], "success", "Booking accepted",
+                       f"#{code} · {what} confirmed {b['requested_date']:%b} {b['requested_date'].day}, {time_label(confirmed_time)}")
+                return redirect(url_for("staff.booking_accepted", booking_id=b["id"]))
+    return render_template("staff/booking_details.html", b=b, price=booking_price(b), errors=errors,
+                           confirmed_time=confirmed_time)
 
 
 @bp.route("/requests/<int:booking_id>/accepted")

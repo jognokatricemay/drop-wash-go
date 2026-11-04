@@ -10,7 +10,7 @@
   <div class="stack">
     <section class="card">
       <h2>Schedule &amp; address</h2>
-      {% set when = b.requested_date|short_date ~ " · " ~ (b.confirmed_schedule or b.requested_time) %}
+      {% set when = b.requested_date|short_date ~ " · " ~ ((b.confirmed_schedule or b.requested_time)|time_label) %}
       {{ row(("Confirmed " if b.confirmed_schedule else "Requested ") ~ ("drop-off" if b.handling == "drop-off" else "pickup"), when) }}
       {% if b.delivery_schedule %}{{ row("Delivery (set by shop)" if delivers else "Ready for pickup (set by shop)", b.delivery_schedule) }}{% endif %}
       {% if b.address %}{{ row("Address", b.address) }}{% else %}{{ row("Shop address", b.shop_address) }}{% endif %}

@@ -13,7 +13,7 @@
       {{ row("Customer", b.customer_name) }}
       {{ row("Phone", b.customer_mobile or "—") }}
       {{ row("Handling", b.handling|handling) }}
-      {{ row("Confirmed " ~ ("drop-off" if b.handling == "drop-off" else "pickup"), b.requested_date|short_date ~ " · " ~ (b.confirmed_schedule or b.requested_time)) }}
+      {{ row("Confirmed " ~ ("drop-off" if b.handling == "drop-off" else "pickup"), b.requested_date|short_date ~ " · " ~ ((b.confirmed_schedule or b.requested_time)|time_label)) }}
       {% if b.delivery_schedule %}{{ row("Ready / delivery schedule", b.delivery_schedule) }}{% endif %}
       {% if b.address %}{{ row("Address", b.address) }}{% endif %}
       {% if b.notes %}<div class="notes"><span>Special instructions</span><span>{{ b.notes }}</span></div>{% endif %}

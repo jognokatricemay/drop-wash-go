@@ -8,7 +8,7 @@ from decimal import Decimal, InvalidOperation
 from flask import Blueprint, abort, g, redirect, render_template, request, session, url_for
 
 from .db import execute, query
-from .helpers import BOOKING_SQL, HANDLING, TIME_SLOTS, booking_price, login_required
+from .helpers import BOOKING_SQL, HANDLING, booking_price, login_required, time_input_value
 
 bp = Blueprint("customer", __name__)
 
@@ -73,7 +73,7 @@ def book(shop_id):
         "handling": draft.get("handling", offered[-1] if offered else "drop-off"),
         "est_weight": draft.get("est_weight", ""),
         "requested_date": draft.get("requested_date", ""),
-        "requested_time": draft.get("requested_time", "9-11 AM"),
+        "requested_time": draft.get("requested_time", "09:00"),
         "address": draft.get("address", g.user["address"] or ""),
         "notes": draft.get("notes", ""),
     }
@@ -97,7 +97,8 @@ def book(shop_id):
                 errors["requested_date"] = "Choose today or a later date."
         except ValueError:
             errors["requested_date"] = "Choose a date."
-        if form.get("requested_time") not in TIME_SLOTS:
+        requested_time = form.get("requested_time", "").strip()
+        if not time_input_value(requested_time) or requested_time != time_input_value(requested_time):
             errors["requested_time"] = "Choose a time."
         if handling in ("pickup", "pickup-delivery") and not form.get("address", "").strip():
             errors["address"] = "Enter the pickup address."
@@ -105,13 +106,13 @@ def book(shop_id):
             session["draft"] = {
                 "shop_id": shop_id, "service_id": service["id"], "handling": handling,
                 "est_weight": str(weight), "requested_date": form["requested_date"],
-                "requested_time": form["requested_time"],
+                "requested_time": requested_time,
                 "address": form.get("address", "").strip() if handling != "drop-off" else "",
                 "notes": form.get("notes", "").strip()[:255],
             }
             return redirect(url_for("customer.review"))
     return render_template("customer/book.html", shop=shop, offered=offered, errors=errors, form=form,
-                           time_slots=TIME_SLOTS, handling_labels=HANDLING)
+                           handling_labels=HANDLING)
 
 
 def draft_booking():

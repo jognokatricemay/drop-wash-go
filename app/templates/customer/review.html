@@ -13,7 +13,7 @@
       <h2>{{ shop.name }}</h2>
       {{ row("Service", b.service_name) }}
       {{ row("Handling", b.handling|handling) }}
-      {{ row("Requested", b.requested_date|short_date ~ " · " ~ b.requested_time) }}
+      {{ row("Requested", b.requested_date|short_date ~ " · " ~ (b.requested_time|time_label)) }}
       {% if b.address %}{{ row("Address", b.address) }}{% endif %}
       {% if b.notes %}<div class="notes"><span>Special instructions</span><span>{{ b.notes }}</span></div>{% endif %}
     </section>
