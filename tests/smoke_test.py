@@ -146,6 +146,68 @@ html = r.get_data(as_text=True)
 check("customer sees order ID, status and paid", code in html and "Ready for Delivery" in html and "Paid" in html)
 get(c, "/notifications", contains="Your laundry is being processed")
 
+# ---- forgot password (customer + shop), by security question
+get(guest, "/forgot-password", contains="Reset your password")
+get(guest, "/shop/forgot-password", contains="Reset your password")
+get(guest, "/login", contains="Forgot password?")
+get(guest, "/shop/login", contains="Forgot password?")
+
+fp = app.test_client()
+r = fp.post("/forgot-password", data={"identifier": "09999999999"})
+check("forgot: unknown number is refused", "No account found" in r.get_data(as_text=True))
+r = fp.post("/forgot-password", data={"identifier": "0917 123 4567"})
+check("forgot: shows the security question", "What is your favorite food?" in r.get_data(as_text=True))
+r = fp.post("/forgot-password", data={"answer": "pizza", "new_password": "newpass123", "confirm_password": "newpass123"})
+check("forgot: wrong answer is refused", "doesn" in r.get_data(as_text=True) and "match" in r.get_data(as_text=True))
+r = fp.post("/forgot-password", data={"answer": "adobo", "new_password": "short", "confirm_password": "short"})
+check("forgot: short password is refused", "at least 8" in r.get_data(as_text=True))
+r = fp.post("/forgot-password", data={"answer": " ADOBO ", "new_password": "newpass123", "confirm_password": "newpass123"})
+check("forgot: right answer (any case) changes the password", r.status_code == 302 and r.headers["Location"].endswith("/login"))
+r = app.test_client().post("/login", data={"mobile": "09171234567", "password": "newpass123"})
+check("forgot: can log in with the new password", r.status_code == 302 and r.headers["Location"].endswith("/home"))
+r = app.test_client().post("/login", data={"mobile": "09171234567", "password": "password123"})
+check("forgot: old password no longer works", r.status_code == 200)
+
+fs = app.test_client()
+r = app.test_client().post("/shop/forgot-password", data={"identifier": "FE.REYES"})
+check("forgot (shop): username is case-sensitive", "No account found" in r.get_data(as_text=True))
+r = fs.post("/shop/forgot-password", data={"identifier": "fe.reyes"})
+check("forgot (shop): shows the security question", "What is your favorite food?" in r.get_data(as_text=True))
+r = fs.post("/shop/forgot-password", data={"answer": "adobo", "new_password": "shoppass123", "confirm_password": "shoppass123"})
+check("forgot (shop): changes the password", r.status_code == 302 and r.headers["Location"].endswith("/shop/login"))
+r = app.test_client().post("/shop/login", data={"username": "fe.reyes", "password": "shoppass123"})
+check("forgot (shop): can log in with the new password", r.status_code == 302)
+
+# a customer id can't be used on the shop page (and the other way around)
+fx = app.test_client()
+fx.post("/forgot-password", data={"identifier": "09181112222"})
+r = fx.post("/shop/forgot-password", data={"answer": "adobo", "new_password": "hacked1234", "confirm_password": "hacked1234"})
+check("forgot: customer session can't reset on the shop page", r.status_code == 302 and "/shop/forgot-password" in r.headers["Location"])
+
+# too many wrong answers locks that attempt
+fl = app.test_client()
+fl.post("/forgot-password", data={"identifier": "09181112222"})
+for _ in range(5):
+    fl.post("/forgot-password", data={"answer": "wrong", "new_password": "x", "confirm_password": "x"})
+r = fl.post("/forgot-password", data={"answer": "adobo", "new_password": "letmein123", "confirm_password": "letmein123"})
+check("forgot: locked after 5 wrong answers", "Too many wrong answers" in r.get_data(as_text=True))
+
+# sign-up now asks for a security question
+r = app.test_client().post("/create-account", data={"full_name": "Ana Test", "mobile": "09170001111", "password": "password123",
+                                                    "confirm_password": "password123"})
+check("sign-up: security question is required", "Choose a security question" in r.get_data(as_text=True))
+nc = app.test_client()
+r = nc.post("/create-account", data={"full_name": "Ana Test", "mobile": "09170001111", "password": "password123",
+                                     "confirm_password": "password123", "security_question": "What town were you born in?",
+                                     "security_answer": "Balete"})
+check("sign-up: works with a security question", r.status_code == 302)
+r = app.test_client().post("/forgot-password", data={"identifier": "09170001111"})
+check("sign-up: new account can use forgot password", "What town were you born in?" in r.get_data(as_text=True))
+r = app.test_client().post("/shop/register", data={"shop_name": "Test Shop", "contact_number": "09170002222", "address": "Somewhere",
+                                                   "owner_name": "Owner", "username": "test.shop", "password": "password123",
+                                                   "confirm_password": "password123"})
+check("shop register: security question is required", "Choose a security question" in r.get_data(as_text=True))
+
 with app.app_context():
     shop = query("SELECT offers_pickup, delivery_fee FROM shops WHERE id=1", one=True)
     check("shop info toggles saved", shop["offers_pickup"] == 0 and shop["delivery_fee"] == 60)

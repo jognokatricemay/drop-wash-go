@@ -11,6 +11,7 @@ login{% endblock %} {% block form %}
 placeholder="fe.reyes") }} {{ field("Password", "password", type="password") }}
 <button class="btn btn-primary btn-block" type="submit">Login</button>
 <div class="links">
+  <a class="plain" href="{{ url_for('auth.forgot_staff') }}">Forgot password?</a>
   <a href="{{ url_for('auth.staff_register') }}">New shop? Register here</a>
   <a class="plain" href="{{ url_for('auth.login') }}">Customer? Login here</a>
 </div>
