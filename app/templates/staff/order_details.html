@@ -67,7 +67,7 @@
 <!-- Confirm weight pop-up -->
 <dialog class="modal" id="weight-modal" aria-labelledby="weight-title" {% if weight_error %}open{% endif %}>
   <form class="modal-body" id="weight-form" method="post" action="{{ url_for('staff.confirm_weight', booking_id=b.id) }}"
-        data-rate="{{ b.rate }}" data-fee="{{ price.fee }}" novalidate onsubmit="return validateWeightForm()">
+        data-rate="{{ b.rate }}" data-fee="{{ price.fee }}" novalidate>
     <div class="modal-head">
       <div>
         <h2 id="weight-title">Confirm weight</h2>
@@ -78,11 +78,11 @@
     
     <div class="field">
       <label for="actual_weight">Actual weight ({{ b.unit }})</label>
-      {{ input("actual_weight", input_val, "number", extra='step="1"') }}
-      <span class="muted small">Booking estimate: {{ b.est_weight|kg }} {{ b.unit }}</span>
+      {{ input("actual_weight", input_val, "number", extra='step="1"' ~ (' style="border-color: var(--danger, #dc3545);"' if weight_error else '')) }}
       <p id="weight-err-text" style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 4px 0 0 0; font-weight: 500; {% if not weight_error %}display: none;{% endif %}">
         {{ weight_error if weight_error else '' }}
       </p>
+      <span class="muted small" style="margin-top: 4px;">Booking estimate: {{ b.est_weight|kg }} {{ b.unit }}</span>
     </div>
 
     <hr class="divider">
@@ -112,34 +112,67 @@
 </dialog>
 
 <script>
-  function validateWeightForm() {
+  document.addEventListener('DOMContentLoaded', () => {
+    const wForm = document.getElementById('weight-form');
     const wInput = document.getElementById('actual_weight');
     const errEl = document.getElementById('weight-err-text');
-    const raw = wInput ? wInput.value.trim() : '';
-    const num = Number(raw);
+    const openBtn = document.getElementById('open-weight');
 
-    if (!raw) {
-      errEl.textContent = 'Actual weight cannot be empty.';
-      errEl.style.display = 'block';
-      return false;
+    function setWeightError(msg) {
+      if (errEl) {
+        errEl.textContent = msg;
+        errEl.style.display = msg ? 'block' : 'none';
+      }
+      if (wInput) {
+        wInput.style.borderColor = msg ? 'var(--danger, #dc3545)' : '';
+      }
     }
-    if (isNaN(num) || !Number.isInteger(num) || num < 1 || num > 100) {
-      errEl.textContent = 'Enter a valid whole weight (1 to 100).';
-      errEl.style.display = 'block';
-      return false;
-    }
-    errEl.textContent = '';
-    errEl.style.display = 'none';
-    return true;
-  }
 
-  {% if weight_error %}
-  document.addEventListener('DOMContentLoaded', () => {
+    if (openBtn) {
+      openBtn.addEventListener('click', () => setWeightError(''));
+    }
+
+    if (wInput) {
+      wInput.addEventListener('input', () => {
+        const raw = wInput.value.trim();
+        const num = Number(raw);
+        if (raw && !isNaN(num) && Number.isInteger(num) && num >= 1 && num <= 100) {
+          setWeightError('');
+        }
+      });
+    }
+
+    if (wForm) {
+      wForm.addEventListener('submit', (e) => {
+        const raw = wInput ? wInput.value.trim() : '';
+        const num = Number(raw);
+
+        if (!raw) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          setWeightError('Actual weight cannot be empty.');
+          return false;
+        }
+        if (isNaN(num) || !Number.isInteger(num) || num < 1 || num > 100) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          setWeightError('Enter a valid whole weight (1 to 100).');
+          return false;
+        }
+        setWeightError('');
+      });
+    }
+
+    {% if weight_error %}
     const modal = document.getElementById('weight-modal');
     if (modal && typeof modal.showModal === 'function' && !modal.open) {
       modal.showModal();
     }
+    if (wInput) {
+      wInput.value = {{ (weight_val or '')|tojson }};
+      wInput.style.borderColor = 'var(--danger, #dc3545)';
+    }
+    {% endif %}
   });
-  {% endif %}
 </script>
 {% endblock %}
