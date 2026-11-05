@@ -179,7 +179,7 @@ check("paid amount too small rejected", "less than" in r.get_data(as_text=True))
 r = s.post(f"/shop/orders/{new_id}/paid", data={"method": "cash", "amount_received": "250"}, follow_redirects=True)
 check("mark as paid", "marked as paid" in r.get_data(as_text=True))
 r = s.post("/shop/shop-info", data={"name": "Mama Fe Laundry", "contact_number": "0917 123 4567", "address": "Mabini St., Balete",
-                                    "opening_hours": "8:00 AM - 8:00 PM", "offers_dropoff": "1", "offers_delivery": "1",
+                                    "hours_from": "08:00", "hours_to": "20:00", "offers_dropoff": "1", "offers_delivery": "1",
                                     "delivery_fee": "60", "accepts_cash": "1", "rate_1": "35", "next": "/shop/orders"})
 check("shop info saved and goes to next page", r.status_code == 302 and r.headers["Location"].endswith("/shop/orders"))
 
@@ -219,6 +219,43 @@ with app.app_context():
 r = s.post("/shop/notifications/read-all")
 check("staff can mark notifications as read", r.status_code == 302)
 check("customer can't open staff notifications", c.get("/shop/notifications").status_code == 302)
+
+# ---- shop info validation, add / remove service, change password (Member 6)
+base = {"name": "Mama Fe Laundry", "contact_number": "0917 123 4567", "address": "Mabini St., Balete",
+        "hours_from": "08:00", "hours_to": "20:00", "offers_dropoff": "1", "accepts_cash": "1", "delivery_fee": "0"}
+for label, change, words in [
+    ("shop info: name is required", {"name": " "}, "Shop name cannot be empty"),
+    ("shop info: contact must be 09 + 11 digits", {"contact_number": "12345"}, "must start with"),
+    ("shop info: closing must be after opening", {"hours_from": "20:00", "hours_to": "08:00"}, "later than opening"),
+    ("shop info: at least one handling option", {"offers_dropoff": ""}, "at least one service"),
+    ("shop info: at least one payment method", {"accepts_cash": ""}, "at least one payment method"),
+    ("shop info: GCash needs a number", {"accepts_gcash": "1", "gcash_number": "", "gcash_name": "Fe"}, "GCash number cannot be empty"),
+]:
+    data = {k: v for k, v in {**base, **change}.items() if v != ""}
+    r = s.post("/shop/shop-info", data=data)
+    check(label, words in r.get_data(as_text=True))
+r = s.post("/shop/shop-info", data={"add_new_service": "1", "new_service_name": "Dry only", "new_service_rate": "25", "new_service_unit": "kg"},
+           follow_redirects=True)
+check("add service", "Dry only" in r.get_data(as_text=True))
+r = s.post("/shop/shop-info", data={"add_new_service": "1", "new_service_name": "dry ONLY", "new_service_rate": "25", "new_service_unit": "kg"},
+           follow_redirects=True)
+check("duplicate service name is refused", "already exists" in r.get_data(as_text=True))
+with app.app_context():
+    svc_id = query("SELECT id FROM services WHERE shop_id=1 AND name='Dry only'", one=True)["id"]
+r = s.post("/shop/shop-info", data={"delete_service_id": str(svc_id)}, follow_redirects=True)
+check("remove service", "Service removed" in r.get_data(as_text=True) and "Dry only" not in r.get_data(as_text=True).split("Services")[-1])
+r = s.post(f"/shop/orders/{new_id}/weight", data={"actual_weight": "0"}, follow_redirects=True)
+check("weight 0 is refused with a message", "Enter a valid weight" in r.get_data(as_text=True))
+r = s.post("/shop/profile", data={"current_password": "wrong", "new_password": "newpass123", "confirm_password": "newpass123"})
+check("change password: wrong current password", "Incorrect current password" in r.get_data(as_text=True))
+r = s.post("/shop/profile", data={"current_password": "password123", "new_password": "short", "confirm_password": "short"})
+check("change password: too short", "at least 8" in r.get_data(as_text=True))
+r = s.post("/shop/profile", data={"current_password": "password123", "new_password": "newpass123", "confirm_password": "other123"})
+check("change password: confirmation must match", "do not match" in r.get_data(as_text=True))
+r = s.post("/shop/profile", data={"current_password": "password123", "new_password": "newpass123", "confirm_password": "newpass123"})
+check("change password works", r.status_code == 302)
+again = app.test_client()
+check("shop logs in with the new password", again.post("/shop/login", data={"username": "fe.reyes", "password": "newpass123"}).status_code == 302)
 
 # customer sees the updates
 r = c.get(f"/orders/{new_id}")
