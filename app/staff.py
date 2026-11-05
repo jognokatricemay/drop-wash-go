@@ -203,6 +203,7 @@ def mark_paid(booking_id):
 @login_required("staff")
 def shop_info():
     shop = g.shop
+    
     if request.method == "POST":
         f = request.form
 
@@ -225,29 +226,58 @@ def shop_info():
             new_rate = f.get("new_service_rate", "").strip()
             new_unit = f.get("new_service_unit", "kg").strip()
             
+            # Gagamit tayo ng specific flash categories para maitapat sa "Add Service" section
             if not new_name:
-                flash("Service name cannot be empty.")
+                flash("Service name cannot be empty.", "add_service_error")
             elif not new_rate:
-                flash("Service rate cannot be empty.")
+                flash("Service rate cannot be empty.", "add_service_error")
             else:
                 try:
                     rate_val = Decimal(new_rate.replace("₱", "").replace(",", ""))
                     if rate_val <= 0:
-                        flash("Service rate must be greater than 0.")
+                        flash("Service rate must be greater than 0.", "add_service_error")
                     else:
                         existing = query("SELECT id FROM services WHERE shop_id=%s AND LOWER(name)=LOWER(%s)", [shop["id"], new_name])
                         if existing:
-                            flash(f"A service named '{new_name}' already exists.")
+                            flash(f"A service named '{new_name}' already exists.", "add_service_error")
                         else:
                             execute("INSERT INTO services (shop_id, name, rate, unit) VALUES (%s, %s, %s, %s)",
                                     [shop["id"], new_name, rate_val, new_unit])
-                            flash(f"Service '{new_name}' added successfully.")
+                            flash(f"Service '{new_name}' added successfully.", "success")
                 except InvalidOperation:
-                    flash("Invalid rate format.")
+                    flash("Invalid rate format.", "add_service_error")
+            
+            # Ipapasa ang mga input values gamit ang session (Siguraduhin na may 'session' sa imports mo sa taas)
+            from flask import session
+            session['add_service_data'] = {'name': new_name, 'rate': new_rate, 'unit': new_unit}
             return redirect(url_for("staff.shop_info"))
 
         # KUNG "SAVE CHANGES" (Main form update)
         else:
+            # Validations for Main Shop Details
+            errors = []
+            
+            name = f.get("name", "").strip()
+            contact = f.get("contact_number", "").strip()
+            address = f.get("address", "").strip()
+            hours = f.get("opening_hours", "").strip()
+            
+            if not name or not contact or not address or not hours:
+                errors.append("Shop details (name, contact, address, opening hours) cannot be empty.")
+            
+            # Validation for Offers
+            if not any(k in f for k in ["offers_dropoff", "offers_pickup", "offers_delivery"]):
+                errors.append("You must offer at least one service (Drop-off, Pickup, or Delivery).")
+                
+            # Validation for Payments
+            if not any(k in f for k in ["accepts_cash", "accepts_gcash"]):
+                errors.append("You must accept at least one payment method (Cash or GCash).")
+
+            if errors:
+                for err in errors:
+                    flash(err, "shop_info_error")
+                return redirect(url_for("staff.shop_info"))
+
             try:
                 fee = Decimal((f.get("delivery_fee") or "0").replace("₱", "").replace(",", ""))
             except InvalidOperation:
@@ -256,8 +286,7 @@ def shop_info():
             execute("""UPDATE shops SET name=%s, contact_number=%s, address=%s, opening_hours=%s,
                        offers_dropoff=%s, offers_pickup=%s, offers_delivery=%s, delivery_fee=%s,
                        accepts_cash=%s, accepts_gcash=%s, gcash_number=%s, gcash_name=%s WHERE id=%s""",
-                    [f.get("name", shop["name"]).strip() or shop["name"], f.get("contact_number", "").strip(),
-                     f.get("address", "").strip(), f.get("opening_hours", "").strip(),
+                    [name, contact, address, hours,
                      "offers_dropoff" in f, "offers_pickup" in f, "offers_delivery" in f, fee,
                      "accepts_cash" in f, "accepts_gcash" in f, f.get("gcash_number", "").strip() or None,
                      f.get("gcash_name", "").strip() or None, shop["id"]])
@@ -270,12 +299,16 @@ def shop_info():
                     except InvalidOperation:
                         pass
             
-            flash("Shop changes saved. They apply to new bookings only.")
+            flash("Shop changes saved.", "success")
             nxt = f.get("next", "")
             return redirect(nxt if nxt.startswith("/") and not nxt.startswith("//") else url_for("staff.shop_info"))
     
     services = query("SELECT * FROM services WHERE shop_id=%s ORDER BY id", [shop["id"]])
-    return render_template("staff/shop_info.html", shop=shop, services=services)
+    
+    from flask import session
+    add_service_data = session.pop('add_service_data', {'name': '', 'rate': '', 'unit': 'kg'})
+    
+    return render_template("staff/shop_info.html", shop=shop, services=services, add_service_data=add_service_data)
 
 
 @bp.route("/profile", methods=["GET", "POST"])

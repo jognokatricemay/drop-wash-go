@@ -65,7 +65,7 @@
 {% set delivers = b.handling == "pickup-delivery" %}
 {% set start = b.actual_weight if b.actual_weight is not none else b.est_weight %}
 <!-- Confirm weight pop-up -->
-<dialog class="modal" id="weight-modal" aria-labelledby="weight-title">
+<dialog class="modal" id="weight-modal" aria-labelledby="weight-title" {% if weight_error %}open{% endif %}>
   <form class="modal-body" id="weight-form" method="post" action="{{ url_for('staff.confirm_weight', booking_id=b.id) }}"
         data-rate="{{ b.rate }}" data-fee="{{ price.fee }}">
     <div class="modal-head">
@@ -89,7 +89,7 @@
         </div>
       {% endif %}
       
-      <span class="muted small">Booking estimate: {{ b.est_weight|kg }} {{ b.unit }}</span>
+      <span class="muted small" style="margin-top: 4px;">Booking estimate: {{ b.est_weight|kg }} {{ b.unit }}</span>
     </div>
 
     <hr class="divider">
@@ -117,4 +117,16 @@
     </div>
   </div>
 </dialog>
+
+{% if weight_error %}
+<script>
+  // Kapag may error, siguraduhing bumukas ulit ang modal after ma-reload ng flash redirect
+  document.addEventListener('DOMContentLoaded', () => {
+    const modal = document.getElementById('weight-modal');
+    if (modal && typeof modal.showModal === 'function' && !modal.open) {
+      modal.showModal();
+    }
+  });
+</script>
+{% endif %}
 {% endblock %}
