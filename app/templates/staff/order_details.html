@@ -63,7 +63,8 @@
 {% block modals %}
 {% set delivers = b.handling == "pickup-delivery" %}
 {% set start = b.actual_weight if b.actual_weight is not none else b.est_weight %}
-<!-- Confirm weight pop-up (Added novalidate so browser tooltip doesn't block Red Text) -->
+{% set input_val = weight_val if weight_val is not none else (start|kg) %}
+<!-- Confirm weight pop-up -->
 <dialog class="modal" id="weight-modal" aria-labelledby="weight-title" {% if weight_error %}open{% endif %}>
   <form class="modal-body" id="weight-form" method="post" action="{{ url_for('staff.confirm_weight', booking_id=b.id) }}"
         data-rate="{{ b.rate }}" data-fee="{{ price.fee }}" novalidate>
@@ -77,8 +78,7 @@
     
     <div class="field">
       <label for="actual_weight">Actual weight ({{ b.unit }})</label>
-      
-      {{ input("actual_weight", start|kg, "number", extra='step="1"' ~ (' style="border-color: var(--danger, #dc3545);"' if weight_error else '')) }}
+      {{ input("actual_weight", input_val, "number", extra='step="1"' ~ (' style="border-color: var(--danger, #dc3545);"' if weight_error else '')) }}
       
       <!-- RED TEXT VALIDATION -->
       <p id="weight-err-text" style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 4px 0 0 0; font-weight: 500; {% if not weight_error %}display: none;{% endif %}">
@@ -114,14 +114,73 @@
   </div>
 </dialog>
 
-{% if weight_error %}
 <script>
   document.addEventListener('DOMContentLoaded', () => {
+    const wForm = document.getElementById('weight-form');
+    const wInput = document.getElementById('actual_weight');
+    const errEl = document.getElementById('weight-err-text');
+    const openBtn = document.getElementById('open-weight');
+
+    function setWeightError(msg) {
+      if (errEl) {
+        errEl.textContent = msg;
+        errEl.style.display = msg ? 'block' : 'none';
+      }
+      if (wInput) {
+        wInput.style.borderColor = msg ? 'var(--danger, #dc3545)' : '';
+      }
+    }
+
+    // Clear red border & error text kapag binuksan ulit ang modal
+    if (openBtn) {
+      openBtn.addEventListener('click', () => {
+        setWeightError('');
+      });
+    }
+
+    // Real-time check: kapag nag-type ng valid whole number (1 to 100), kusang mawawala ang red border at red text
+    if (wInput) {
+      wInput.addEventListener('input', () => {
+        const raw = wInput.value.trim();
+        const num = Number(raw);
+        if (raw && !isNaN(num) && Number.isInteger(num) && num >= 1 && num <= 100) {
+          setWeightError('');
+        }
+      });
+    }
+
+    // Validation kapag pinindot ang Save button
+    if (wForm) {
+      wForm.addEventListener('submit', (e) => {
+        const raw = wInput ? wInput.value.trim() : '';
+        const num = Number(raw);
+
+        if (!raw) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          setWeightError('Actual weight cannot be empty.');
+          return false;
+        }
+        if (isNaN(num) || !Number.isInteger(num) || num < 1 || num > 100) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          setWeightError('Enter a valid whole weight (1 to 100).');
+          return false;
+        }
+        setWeightError('');
+      });
+    }
+
+    {% if weight_error %}
     const modal = document.getElementById('weight-modal');
     if (modal && typeof modal.showModal === 'function' && !modal.open) {
       modal.showModal();
     }
+    if (wInput) {
+      wInput.value = {{ (weight_val or '')|tojson }};
+      wInput.style.borderColor = 'var(--danger, #dc3545)';
+    }
+    {% endif %}
   });
 </script>
-{% endif %}
 {% endblock %}

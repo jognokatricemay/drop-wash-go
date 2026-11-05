@@ -3,14 +3,17 @@ from werkzeug.security import check_password_hash, generate_password_hash
 Owners:  Member 5 — dashboard, booking requests, accept / reject, Order ID
          Member 6 — orders, confirm weight, update status, mark as paid, shop info, profile
 """
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
 from flask import Blueprint, abort, flash, g, redirect, render_template, request, url_for
 
 from .db import execute, query
-from .helpers import BOOKING_SQL, booking_price, login_required, notify, peso
+from .helpers import BOOKING_SQL, booking_price, login_required, notify, peso, schedule_label, time_input_value, time_label, today_ph
 
 bp = Blueprint("staff", __name__, url_prefix="/shop")
+
+SHOP_ORDER_PREFIXES = {"clean & fresh": "CNF"}
 
 STATUSES = [
     ("Accepted", ""),
@@ -19,6 +22,23 @@ STATUSES = [
     ("Ready for Delivery", "Rider will bring it to the customer"),
     ("Completed", "Laundry received by the customer"),
 ]
+
+TODAY_PICKUP_STATUSES = ("Pending", "Accepted", "Processing")
+
+
+def status_flow(b):
+    """The steps of one order, in order. An order moves one step at a time and never goes back."""
+    ready = "Ready for Delivery" if b["handling"] == "pickup-delivery" else "Ready for Pickup"
+    return ["Accepted", "Processing", ready, "Completed"]
+
+
+def order_code(shop_name, booking_id):
+    normalized_name = " ".join(shop_name.casefold().split())
+    prefix = SHOP_ORDER_PREFIXES.get(normalized_name)
+    if prefix is None:
+        words = ["".join(char for char in word if char.isalnum()) for word in shop_name.split()]
+        prefix = "".join(word[0] for word in words if word).upper()
+    return f"{prefix}-{booking_id:05d}"
 
 
 def shop_booking(booking_id):
@@ -34,18 +54,39 @@ def shop_booking(booking_id):
 @login_required("staff")
 def dashboard():
     sid = g.shop["id"]
+    today = today_ph().isoformat()
     counts = {r["status"]: r["n"] for r in query(
         "SELECT status, COUNT(*) AS n FROM bookings WHERE shop_id=%s GROUP BY status", [sid])}
     active = query(BOOKING_SQL + """ WHERE b.shop_id=%s AND b.order_code IS NOT NULL
                    AND b.status NOT IN ('Completed','Rejected') ORDER BY b.updated_at DESC LIMIT 6""", [sid])
-    return render_template("staff/dashboard.html", counts=counts, active_orders=active)
+    today_pickup_count = query(
+        """SELECT COUNT(*) AS n FROM bookings
+           WHERE shop_id=%s AND requested_date=%s AND handling IN ('pickup','pickup-delivery')
+           AND status IN %s""",
+        [sid, today, TODAY_PICKUP_STATUSES], one=True,
+    )["n"]
+    unpaid_done = query(BOOKING_SQL + """ WHERE b.shop_id=%s AND b.status='Completed' AND b.payment_status<>'Paid'
+                       ORDER BY b.updated_at DESC LIMIT 6""", [sid])
+    return render_template("staff/dashboard.html", counts=counts, active_orders=active,
+                           today_pickup_count=today_pickup_count, unpaid_done=unpaid_done)
+
+
+@bp.route("/pickups/today")
+@login_required("staff")
+def today_pickups():
+    today = today_ph().isoformat()
+    rows = query(BOOKING_SQL + """ WHERE b.shop_id=%s AND b.requested_date=%s
+                      AND b.handling IN ('pickup','pickup-delivery') AND b.status IN %s
+                      ORDER BY b.requested_time, b.id""",
+                 [g.shop["id"], today, TODAY_PICKUP_STATUSES])
+    return render_template("staff/today_pickups.html", rows=rows, today=today_ph())
 
 
 @bp.route("/requests")
 @login_required("staff")
 def requests():
     tab = request.args.get("tab", "Pending")
-    where = {"Pending": "b.status='Pending'", "Rejected": "b.status='Rejected'"}.get(
+    where = {"Pending": "b.status='Pending'", "Rejected": "b.status='Rejected'", "Cancelled": "b.status='Cancelled'"}.get(
         tab, "b.order_code IS NOT NULL")
     rows = query(BOOKING_SQL + f" WHERE b.shop_id=%s AND {where} ORDER BY b.requested_date, b.id DESC LIMIT 50",
                  [g.shop["id"]])
@@ -59,8 +100,8 @@ def requests():
 def booking_details(booking_id):
     b = shop_booking(booking_id)
     errors = {}
+    confirmed_time = request.form.get("confirmed_schedule", "").strip() if request.method == "POST" else b["requested_time"]
     if request.method == "POST" and b["status"] == "Pending":
-        schedule = request.form.get("confirmed_schedule", "").strip() or b["requested_time"]
         if request.form.get("action") == "reject":
             reason = request.form.get("reason", "").strip()
             if not reason:
@@ -70,16 +111,20 @@ def booking_details(booking_id):
                 notify(b["customer_id"], b["id"], "error", "Booking not accepted", f"{b['shop_name']} · {reason}")
                 flash(f"Booking from {b['customer_name']} was rejected.")
                 return redirect(url_for("staff.requests"))
-        else:
-            # FR-05: the Order ID is created only when the booking is accepted
-            code = f"DWG-{b['id']:05d}"
-            execute("UPDATE bookings SET status='Accepted', order_code=%s, confirmed_schedule=%s WHERE id=%s",
-                    [code, schedule, b["id"]])
-            what = "Drop-off" if b["handling"] == "drop-off" else "Pickup"
-            notify(b["customer_id"], b["id"], "success", "Booking accepted",
-                   f"#{code} · {what} confirmed {b['requested_date']:%b} {b['requested_date'].day}, {schedule}")
-            return redirect(url_for("staff.booking_accepted", booking_id=b["id"]))
-    return render_template("staff/booking_details.html", b=b, price=booking_price(b), errors=errors)
+        elif request.form.get("action") == "accept":
+            if not time_input_value(confirmed_time) or confirmed_time != time_input_value(confirmed_time):
+                errors["confirmed_schedule"] = "Choose a time."
+            else:
+                # FR-05: the Order ID is created only when the booking is accepted
+                code = order_code(b["shop_name"], b["id"])
+                execute("UPDATE bookings SET status='Accepted', order_code=%s, confirmed_schedule=%s WHERE id=%s",
+                        [code, confirmed_time, b["id"]])
+                what = "Drop-off" if b["handling"] == "drop-off" else "Pickup"
+                notify(b["customer_id"], b["id"], "success", "Booking accepted",
+                       f"#{code} · {what} confirmed {b['requested_date']:%b} {b['requested_date'].day}, {time_label(confirmed_time)}")
+                return redirect(url_for("staff.booking_accepted", booking_id=b["id"]))
+    return render_template("staff/booking_details.html", b=b, price=booking_price(b), errors=errors,
+                           confirmed_time=confirmed_time)
 
 
 @bp.route("/requests/<int:booking_id>/accepted")
@@ -115,8 +160,9 @@ def order_details(booking_id):
     if not b["order_code"]:
         return redirect(url_for("staff.booking_details", booking_id=b["id"]))
     
-    weight_error = request.args.get('weight_error')
-    return render_template("staff/order_details.html", b=b, price=booking_price(b), weight_error=weight_error)
+    weight_error = request.args.get("weight_error")
+    weight_val = request.args.get("weight_val")
+    return render_template("staff/order_details.html", b=b, price=booking_price(b), weight_error=weight_error, weight_val=weight_val)
 
 
 @bp.route("/orders/<int:booking_id>/weight", methods=["POST"])
@@ -126,13 +172,13 @@ def confirm_weight(booking_id):
     b = shop_booking(booking_id)
     raw_weight = request.form.get("actual_weight", "").strip()
     if not raw_weight:
-        return redirect(url_for("staff.order_details", booking_id=b["id"], weight_error="Actual weight is required."))
+        return redirect(url_for("staff.order_details", booking_id=b["id"], weight_error="Actual weight cannot be empty.", weight_val=""))
     try:
         weight = Decimal(raw_weight)
         if weight <= 0 or weight > 100 or weight != weight.to_integral_value():
             raise InvalidOperation
     except (InvalidOperation, ValueError):
-        return redirect(url_for("staff.order_details", booking_id=b["id"], weight_error="Enter a valid whole weight (1 to 100)."))
+        return redirect(url_for("staff.order_details", booking_id=b["id"], weight_error="Enter a valid whole weight (1 to 100).", weight_val=raw_weight))
         
     new_status = "Processing" if b["status"] == "Accepted" else b["status"]
     execute("UPDATE bookings SET actual_weight=%s, status=%s WHERE id=%s", [weight, new_status, b["id"]])
@@ -199,7 +245,6 @@ def mark_paid(booking_id):
 # ---------- Member 6: shop info and profile ----------
 
 def _parse_opening_hours(hours_str):
-    """Converts '8:00 AM – 6:00 PM' into ('08:00', '18:00') for time inputs."""
     import re
     from datetime import datetime
     if not hours_str:
@@ -247,7 +292,6 @@ def shop_info():
     if request.method == "POST":
         f = request.form
 
-        # 1. REMOVE SERVICE (Walang flash() para walang gray box sa taas!)
         if "delete_service_id" in f:
             count = query("SELECT COUNT(*) as c FROM services WHERE shop_id=%s", [shop["id"]], one=True)["c"]
             if count <= 1:
@@ -260,7 +304,6 @@ def shop_info():
                     session["shop_status_msg"] = "Cannot remove a service that is currently used in bookings."
             return redirect(url_for("staff.shop_info"))
 
-        # 2. ADD NEW SERVICE (Error stays directly under "Add new service")
         elif "add_new_service" in f:
             new_name = f.get("new_service_name", "").strip()
             new_rate = f.get("new_service_rate", "").strip()
@@ -292,10 +335,10 @@ def shop_info():
                 session["add_service_data"] = {"name": new_name, "rate": new_rate, "unit": new_unit}
             return redirect(url_for("staff.shop_info"))
 
-        # 3. SAVE SHOP CHANGES
         else:
             name = f.get("name", "").strip()
-            contact = f.get("contact_number", "").strip()
+            raw_contact = f.get("contact_number", "").strip()
+            contact_digits = re.sub(r"[\s\-]", "", raw_contact)
             address = f.get("address", "").strip()
             h_from = f.get("hours_from", "").strip()
             h_to = f.get("hours_to", "").strip()
@@ -305,15 +348,16 @@ def shop_info():
             offers_delivery = "offers_delivery" in f
             accepts_cash = "accepts_cash" in f
             accepts_gcash = "accepts_gcash" in f
-            gcash_number = f.get("gcash_number", "").strip()
+            raw_gcash_number = f.get("gcash_number", "").strip()
+            gcash_digits = re.sub(r"[\s\-]", "", raw_gcash_number)
             gcash_name = f.get("gcash_name", "").strip()
 
             if not name:
                 shop_errors["name"] = "Shop name cannot be empty."
-            if not contact:
+            if not contact_digits:
                 shop_errors["contact_number"] = "Contact number cannot be empty."
-            elif not re.match(r"^09\d{9}$", contact):
-                shop_errors["contact_number"] = 'Contact number must start with "09" and contain 11 digits.'
+            elif not re.match(r"^09\d{9}$", contact_digits):
+                shop_errors["contact_number"] = 'Contact number must start with "09" and contain 11 numbers.'
             if not address:
                 shop_errors["address"] = "Address cannot be empty."
             if not h_from or not h_to:
@@ -326,20 +370,22 @@ def shop_info():
             if not (accepts_cash or accepts_gcash):
                 shop_errors["payments"] = "You must accept at least one payment method (Cash or GCash)."
             if accepts_gcash:
-                if not gcash_number or not re.match(r"^09\d{9}$", gcash_number):
-                    shop_errors["gcash_number"] = 'GCash number must start with "09" and contain 11 digits.'
+                if not gcash_digits:
+                    shop_errors["gcash_number"] = "GCash number cannot be empty."
+                elif not re.match(r"^09\d{9}$", gcash_digits):
+                    shop_errors["gcash_number"] = 'GCash number must start with "09" and contain 11 numbers.'
                 if not gcash_name:
-                    shop_errors["gcash_name"] = "Account name is required when GCash is enabled."
+                    shop_errors["gcash_name"] = "Account name cannot be empty."
 
             if shop_errors:
                 hours_from, hours_to = h_from, h_to
                 form_data = {
-                    "name": name, "contact_number": contact, "address": address,
+                    "name": name, "contact_number": raw_contact, "address": address,
                     "opening_hours": f.get("opening_hours", ""),
                     "offers_dropoff": offers_dropoff, "offers_pickup": offers_pickup, "offers_delivery": offers_delivery,
                     "delivery_fee": f.get("delivery_fee", "0"),
                     "accepts_cash": accepts_cash, "accepts_gcash": accepts_gcash,
-                    "gcash_number": gcash_number, "gcash_name": gcash_name
+                    "gcash_number": raw_gcash_number, "gcash_name": gcash_name
                 }
                 return render_template("staff/shop_info.html", shop=shop, services=services,
                                        shop_errors=shop_errors, form_data=form_data,
@@ -358,9 +404,9 @@ def shop_info():
             execute("""UPDATE shops SET name=%s, contact_number=%s, address=%s, opening_hours=%s,
                        offers_dropoff=%s, offers_pickup=%s, offers_delivery=%s, delivery_fee=%s,
                        accepts_cash=%s, accepts_gcash=%s, gcash_number=%s, gcash_name=%s WHERE id=%s""",
-                    [name, contact, address, opening_hours_formatted,
+                    [name, contact_digits, address, opening_hours_formatted,
                      offers_dropoff, offers_pickup, offers_delivery, fee,
-                     accepts_cash, accepts_gcash, gcash_number or None,
+                     accepts_cash, accepts_gcash, gcash_digits or None,
                      gcash_name or None, shop["id"]])
                      
             for svc in services:

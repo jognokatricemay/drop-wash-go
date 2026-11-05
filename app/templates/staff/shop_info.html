@@ -11,7 +11,6 @@
   </div>
 {% endcall %}
 
-<!-- Status or General Messages (No gray flash box from base.html!) -->
 {% if status_msg %}
   <div style="margin-bottom: 16px;">
     <p style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 0; font-weight: 500;">{{ status_msg }}</p>
@@ -31,7 +30,7 @@
           </p>
         </div>
         <div>
-          {{ field("Contact number", "contact_number", form_data.contact_number if form_data else shop.contact_number, "tel", extra='maxlength="11" placeholder="09XXXXXXXXX"') }}
+          {{ field("Contact number", "contact_number", form_data.contact_number if form_data else shop.contact_number, "tel", extra='placeholder="09XXXXXXXXX"') }}
           <p id="err-contact" style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 4px 0 0 0; font-weight: 500; {% if not (shop_errors and shop_errors.contact_number) %}display: none;{% endif %}">
             {{ shop_errors.contact_number if shop_errors and shop_errors.contact_number else '' }}
           </p>
@@ -46,7 +45,6 @@
           </p>
         </div>
 
-        <!-- Opening hours: From and To picker -->
         <div class="field">
           <label>Opening hours</label>
           <div style="display: flex; align-items: center; gap: 8px;">
@@ -87,7 +85,6 @@
           </span>
           
           {% if services|length > 1 %}
-          <!-- Button triggers custom UI Confirmation Modal instead of native alert -->
           <button class="btn btn-outline" style="height:32px; padding: 4px 12px; font-size: 0.85em; color:var(--danger); border-color:var(--danger);" type="button" onclick="openRemoveModal('{{ v.id }}', '{{ v.name|e }}')">
             Remove
           </button>
@@ -104,7 +101,6 @@
       <div id="add-service-container" style="{% if add_service_error %}display: block;{% else %}display: none;{% endif %} background:var(--bg-soft); padding:16px; border-radius:8px; margin-top:8px;">
         <p style="margin-bottom:4px; font-weight:500;">Add new service</p>
         
-        <!-- RED TEXT VALIDATION UNDER "Add new service" TEXT -->
         <p id="add-service-err-text" style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 0 0 10px 0; font-weight: 500; {% if not add_service_error %}display: none;{% endif %}">
           {{ add_service_error if add_service_error else '' }}
         </p>
@@ -135,7 +131,7 @@
 
       <div class="grid-2" style="gap:12px">
         <div>
-          {{ field("GCash number", "gcash_number", form_data.gcash_number if form_data else (shop.gcash_number or ""), "tel", extra='maxlength="11" placeholder="09XXXXXXXXX"') }}
+          {{ field("GCash number", "gcash_number", form_data.gcash_number if form_data else (shop.gcash_number or ""), "tel", extra='placeholder="09XXXXXXXXX"') }}
           <p id="err-gcash-num" style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 4px 0 0 0; font-weight: 500; {% if not (shop_errors and shop_errors.gcash_number) %}display: none;{% endif %}">
             {{ shop_errors.gcash_number if shop_errors and shop_errors.gcash_number else '' }}
           </p>
@@ -152,7 +148,6 @@
   </div>
 </form>
 
-<!-- Hidden form for Remove Service Modal submission -->
 <form id="remove-service-form" method="post" style="display:none;">
   <input type="hidden" name="delete_service_id" id="delete_service_id_input" value="">
 </form>
@@ -182,7 +177,6 @@
     }
   });
 
-  // UI Confirmation Modal for Remove Service
   function openRemoveModal(serviceId, serviceName) {
     document.getElementById('delete_service_id_input').value = serviceId;
     document.getElementById('remove-service-name').textContent = serviceName;
@@ -238,12 +232,12 @@
     let isValid = true;
 
     const name = document.getElementsByName('name')[0].value.trim();
-    const contact = document.getElementsByName('contact_number')[0].value.trim();
+    const rawContact = document.getElementsByName('contact_number')[0].value.trim();
+    const contactDigits = rawContact.replace(/[\s\-]/g, '');
     const address = document.getElementsByName('address')[0].value.trim();
     const hoursFrom = document.getElementById('hours_from').value.trim();
     const hoursTo = document.getElementById('hours_to').value.trim();
 
-    // 1. Shop Name
     if (!name) {
       showErr('err-name', 'Shop name cannot be empty.');
       isValid = false;
@@ -251,18 +245,16 @@
       showErr('err-name', '');
     }
 
-    // 2. Contact Number: Must start with 09 and be 11 digits
-    if (!contact) {
+    if (!contactDigits) {
       showErr('err-contact', 'Contact number cannot be empty.');
       isValid = false;
-    } else if (!/^09\d{9}$/.test(contact)) {
-      showErr('err-contact', 'Contact number must start with "09" and contain 11 digits.');
+    } else if (!/^09\d{9}$/.test(contactDigits)) {
+      showErr('err-contact', 'Contact number must start with "09" and contain 11 numbers.');
       isValid = false;
     } else {
       showErr('err-contact', '');
     }
 
-    // 3. Address
     if (!address) {
       showErr('err-address', 'Address cannot be empty.');
       isValid = false;
@@ -270,7 +262,6 @@
       showErr('err-address', '');
     }
 
-    // 4. Opening Hours (From & To)
     if (!hoursFrom || !hoursTo) {
       showErr('err-hours', 'Please select both opening and closing hours.');
       isValid = false;
@@ -282,7 +273,6 @@
       document.getElementById('opening_hours_hidden').value = `${formatTime12Hr(hoursFrom)} – ${formatTime12Hr(hoursTo)}`;
     }
 
-    // 5. Offers
     const dropoff = document.getElementsByName('offers_dropoff')[0].checked;
     const pickup = document.getElementsByName('offers_pickup')[0].checked;
     const delivery = document.getElementsByName('offers_delivery')[0].checked;
@@ -293,10 +283,10 @@
       showErr('err-offers', '');
     }
 
-    // 6. Payments
     const cash = document.getElementsByName('accepts_cash')[0].checked;
     const gcash = document.getElementsByName('accepts_gcash')[0].checked;
-    const gcashNum = document.getElementsByName('gcash_number')[0].value.trim();
+    const rawGcashNum = document.getElementsByName('gcash_number')[0].value.trim();
+    const gcashDigits = rawGcashNum.replace(/[\s\-]/g, '');
     const gcashName = document.getElementsByName('gcash_name')[0].value.trim();
 
     if (!cash && !gcash) {
@@ -307,14 +297,18 @@
     }
 
     if (gcash) {
-      if (!gcashNum || !/^09\d{9}$/.test(gcashNum)) {
-        showErr('err-gcash-num', 'GCash number must start with "09" and contain 11 digits.');
+      if (!gcashDigits) {
+        showErr('err-gcash-num', 'GCash number cannot be empty.');
+        isValid = false;
+      } else if (!/^09\d{9}$/.test(gcashDigits)) {
+        showErr('err-gcash-num', 'GCash number must start with "09" and contain 11 numbers.');
         isValid = false;
       } else {
         showErr('err-gcash-num', '');
       }
+
       if (!gcashName) {
-        showErr('err-gcash-name', 'Account name is required when GCash is enabled.');
+        showErr('err-gcash-name', 'Account name cannot be empty.');
         isValid = false;
       } else {
         showErr('err-gcash-name', '');
@@ -331,7 +325,6 @@
 {% endblock %}
 
 {% block modals %}
-<!-- UI Confirmation Modal for Removing a Service -->
 <dialog class="modal modal-sm" id="remove-service-modal" aria-labelledby="remove-service-title">
   <div class="modal-body">
     <span class="circle warn">!</span>
@@ -344,7 +337,6 @@
   </div>
 </dialog>
 
-<!-- Shown when leaving the page with unsaved changes -->
 <dialog class="modal" id="unsaved-modal" aria-labelledby="unsaved-title">
   <div class="modal-body">
     <span class="circle warn">!</span>
