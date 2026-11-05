@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{#- Figma: 28 / 28a / 28b staff shop info (Save disabled until changed, unsaved-changes pop-up).  Owner: Member 6 -#}
+{#- Figma: 28 / 28a / 28b staff shop info (Save disabled until changed, unsaved-changes pop-up). Owner: Member 6 -#}
 {% from "_macros.html" import page_head, field, toggle %}
 {% set role = "staff" %}{% set active = "Shop info" %}
 {% block title %}Shop info{% endblock %}
@@ -7,61 +7,336 @@
 {% call page_head("Shop info", "Customers see this on your shop page.") %}
   <div class="save-area">
     <span class="muted small" id="dirty-hint" hidden>You have unsaved changes</span>
-    <button class="btn btn-primary" type="submit" form="shop-form" id="save-shop" disabled>Save changes</button>
+    <button class="btn btn-primary" type="submit" form="shop-form" name="update_shop_info" value="1" id="save-shop" disabled>Save changes</button>
   </div>
 {% endcall %}
-<form class="cols shop-info" id="shop-form" method="post">
+
+{% if status_msg %}
+  <div style="margin-bottom: 16px;">
+    <p style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 0; font-weight: 500;">{{ status_msg }}</p>
+  </div>
+{% endif %}
+
+<form class="cols shop-info" id="shop-form" method="post" novalidate onsubmit="return validateShopForm()">
   <input type="hidden" name="next" id="shop-next" value="">
   <div class="stack" style="gap:20px">
     <section class="card gap-12">
       <h2>Shop details</h2>
       <div class="grid-2" style="gap:12px">
-        {{ field("Shop name", "name", shop.name) }}
-        {{ field("Contact number", "contact_number", shop.contact_number, "tel") }}
+        <div>
+          {{ field("Shop name", "name", form_data.name if form_data else shop.name) }}
+          <p id="err-name" style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 4px 0 0 0; font-weight: 500; {% if not (shop_errors and shop_errors.name) %}display: none;{% endif %}">
+            {{ shop_errors.name if shop_errors and shop_errors.name else '' }}
+          </p>
+        </div>
+        <div>
+          {{ field("Contact number", "contact_number", form_data.contact_number if form_data else shop.contact_number, "tel", extra='placeholder="09XXXXXXXXX"') }}
+          <p id="err-contact" style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 4px 0 0 0; font-weight: 500; {% if not (shop_errors and shop_errors.contact_number) %}display: none;{% endif %}">
+            {{ shop_errors.contact_number if shop_errors and shop_errors.contact_number else '' }}
+          </p>
+        </div>
       </div>
+
       <div class="grid-2" style="gap:12px">
-        {{ field("Address", "address", shop.address) }}
-        {{ field("Opening hours", "opening_hours", shop.opening_hours) }}
+        <div>
+          {{ field("Address", "address", form_data.address if form_data else shop.address) }}
+          <p id="err-address" style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 4px 0 0 0; font-weight: 500; {% if not (shop_errors and shop_errors.address) %}display: none;{% endif %}">
+            {{ shop_errors.address if shop_errors and shop_errors.address else '' }}
+          </p>
+        </div>
+
+        <div class="field">
+          <label>Opening hours</label>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <input class="input" type="time" id="hours_from" name="hours_from" value="{{ hours_from }}" style="flex: 1; min-width: 0;">
+            <span class="muted small">to</span>
+            <input class="input" type="time" id="hours_to" name="hours_to" value="{{ hours_to }}" style="flex: 1; min-width: 0;">
+          </div>
+          <input type="hidden" name="opening_hours" id="opening_hours_hidden" value="{{ form_data.opening_hours if form_data else shop.opening_hours }}">
+          <p id="err-hours" style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 4px 0 0 0; font-weight: 500; {% if not (shop_errors and shop_errors.opening_hours) %}display: none;{% endif %}">
+            {{ shop_errors.opening_hours if shop_errors and shop_errors.opening_hours else '' }}
+          </p>
+        </div>
       </div>
     </section>
+
     <section class="card gap-10">
       <h2>What your shop offers</h2>
-      {{ toggle("Drop-off", "offers_dropoff", shop.offers_dropoff) }}
-      {{ toggle("Pickup", "offers_pickup", shop.offers_pickup) }}
-      {{ toggle("Delivery", "offers_delivery", shop.offers_delivery) }}
-      {{ field("Delivery fee per booking (₱)", "delivery_fee", shop.delivery_fee|kg, "number", extra='min="0" step="1"') }}
+      {{ toggle("Drop-off", "offers_dropoff", form_data.offers_dropoff if form_data else shop.offers_dropoff) }}
+      {{ toggle("Pickup", "offers_pickup", form_data.offers_pickup if form_data else shop.offers_pickup) }}
+      {{ toggle("Delivery", "offers_delivery", form_data.offers_delivery if form_data else shop.offers_delivery) }}
+      {{ field("Delivery fee per booking (₱)", "delivery_fee", form_data.delivery_fee if form_data else (shop.delivery_fee|kg), "number", extra='min="0" step="1"') }}
+      <p id="err-offers" style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 0; font-weight: 500; {% if not (shop_errors and shop_errors.offers) %}display: none;{% endif %}">
+        {{ shop_errors.offers if shop_errors and shop_errors.offers else '' }}
+      </p>
     </section>
   </div>
+
   <div class="stack" style="gap:20px">
     <section class="card gap-10">
-      <h2>Services &amp; rates</h2>
+      <h2>Services & rates</h2>
+      
       {% for v in services %}
-      <div class="row">
-        <label for="rate_{{ v.id }}" style="color:var(--ink)">{{ v.name }} (₱ / {{ v.unit }})</label>
-        <span style="max-width:120px"><input class="input" style="height:40px;text-align:right" id="rate_{{ v.id }}" name="rate_{{ v.id }}" type="number" min="0" step="1" value="{{ v.rate|kg }}"></span>
+      <div class="row" style="align-items: center; justify-content: space-between; margin-bottom: 4px;">
+        <label for="rate_{{ v.id }}" style="color:var(--ink); flex: 1;">{{ v.name }} (₱ / {{ v.unit }})</label>
+        <div style="display: flex; gap: 8px; align-items: center;">
+          <span style="max-width:90px">
+            <input class="input" style="height:32px; padding: 4px 8px; text-align:right;" id="rate_{{ v.id }}" name="rate_{{ v.id }}" type="number" step="1" value="{{ v.rate|kg }}">
+          </span>
+          
+          {% if services|length > 1 %}
+          <button class="btn btn-outline" style="height:32px; padding: 4px 12px; font-size: 0.85em; color:var(--danger); border-color:var(--danger);" type="button" onclick="openRemoveModal('{{ v.id }}', '{{ v.name|e }}')">
+            Remove
+          </button>
+          {% endif %}
+        </div>
       </div>
-      <hr class="divider">
+      <hr class="divider" style="margin: 4px 0;">
       {% endfor %}
-      {# TODO (Member 6): make "+ Add service" open a small form #}
-      <button class="link" type="button">+ Add service</button>
+      
+      <button type="button" class="btn btn-outline" id="toggle-add-btn" style="height: 36px; margin-top: 8px; font-size: 0.9em; max-width: 200px; {% if add_service_error %}display: none;{% endif %}" onclick="document.getElementById('add-service-container').style.display='block'; this.style.display='none';">
+        + Add new service
+      </button>
+
+      <div id="add-service-container" style="{% if add_service_error %}display: block;{% else %}display: none;{% endif %} background:var(--bg-soft); padding:16px; border-radius:8px; margin-top:8px;">
+        <p style="margin-bottom:4px; font-weight:500;">Add new service</p>
+        
+        <p id="add-service-err-text" style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 0 0 10px 0; font-weight: 500; {% if not add_service_error %}display: none;{% endif %}">
+          {{ add_service_error if add_service_error else '' }}
+        </p>
+
+        <div style="display: flex; gap: 8px; margin-bottom: 12px; align-items: center; flex-wrap: wrap;">
+          <input class="input" type="text" id="new_service_name" name="new_service_name" placeholder="Service Name" value="{{ add_service_data.name }}" style="flex: 1; min-width: 130px; height: 32px; padding: 4px 8px;">
+          <input class="input" type="number" step="1" id="new_service_rate" name="new_service_rate" placeholder="Rate (₱)" value="{{ add_service_data.rate }}" style="width: 80px; height: 32px; padding: 4px 8px;">
+          <select class="input" name="new_service_unit" style="width: 90px; height: 32px; padding: 4px 8px;">
+            <option value="kg" {% if add_service_data.unit == 'kg' %}selected{% endif %}>per kg</option>
+            <option value="piece" {% if add_service_data.unit == 'piece' %}selected{% endif %}>per piece</option>
+          </select>
+        </div>
+
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-primary" type="submit" name="add_new_service" value="1" style="height: 32px; padding: 0 16px; font-size: 0.85em;" formnovalidate onclick="window.isSubmitting=true;">Add</button>
+          <button class="btn btn-outline" type="button" style="height: 32px; padding: 0 16px; font-size: 0.85em;" onclick="document.getElementById('add-service-container').style.display='none'; document.getElementById('toggle-add-btn').style.display='inline-block'; document.getElementById('add-service-err-text').style.display='none';">Cancel</button>
+        </div>
+      </div>
     </section>
+
     <section class="card gap-10">
       <h2>Accepted payments</h2>
-      {{ toggle("Cash", "accepts_cash", shop.accepts_cash) }}
-      {{ toggle("GCash", "accepts_gcash", shop.accepts_gcash) }}
+      {{ toggle("Cash", "accepts_cash", form_data.accepts_cash if form_data else shop.accepts_cash) }}
+      {{ toggle("GCash", "accepts_gcash", form_data.accepts_gcash if form_data else shop.accepts_gcash) }}
+      <p id="err-payments" style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 0; font-weight: 500; {% if not (shop_errors and shop_errors.payments) %}display: none;{% endif %}">
+        {{ shop_errors.payments if shop_errors and shop_errors.payments else '' }}
+      </p>
+
       <div class="grid-2" style="gap:12px">
-        {{ field("GCash number", "gcash_number", shop.gcash_number or "", "tel") }}
-        {{ field("Account name", "gcash_name", shop.gcash_name or "") }}
+        <div>
+          {{ field("GCash number", "gcash_number", form_data.gcash_number if form_data else (shop.gcash_number or ""), "tel", extra='placeholder="09XXXXXXXXX"') }}
+          <p id="err-gcash-num" style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 4px 0 0 0; font-weight: 500; {% if not (shop_errors and shop_errors.gcash_number) %}display: none;{% endif %}">
+            {{ shop_errors.gcash_number if shop_errors and shop_errors.gcash_number else '' }}
+          </p>
+        </div>
+        <div>
+          {{ field("Account name", "gcash_name", form_data.gcash_name if form_data else (shop.gcash_name or "")) }}
+          <p id="err-gcash-name" style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 4px 0 0 0; font-weight: 500; {% if not (shop_errors and shop_errors.gcash_name) %}display: none;{% endif %}">
+            {{ shop_errors.gcash_name if shop_errors and shop_errors.gcash_name else '' }}
+          </p>
+        </div>
       </div>
       <p class="muted small">Shown to customers. They pay you directly, not in the app.</p>
     </section>
   </div>
 </form>
+
+<form id="remove-service-form" method="post" style="display:none;">
+  <input type="hidden" name="delete_service_id" id="delete_service_id_input" value="">
+</form>
+
 <p class="muted small">Saved on each booking. Changes apply to new bookings only.</p>
+
+<script>
+  const shopForm = document.getElementById('shop-form');
+  const saveBtn = document.getElementById('save-shop');
+  const dirtyHint = document.getElementById('dirty-hint');
+  let isDirty = false;
+  window.isSubmitting = false;
+
+  const markDirty = () => {
+    isDirty = true;
+    if (saveBtn) saveBtn.disabled = false;
+    if (dirtyHint) dirtyHint.hidden = false;
+  };
+
+  shopForm.addEventListener('input', markDirty);
+  shopForm.addEventListener('change', markDirty);
+
+  window.addEventListener('beforeunload', (e) => {
+    if (isDirty && !window.isSubmitting) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  function openRemoveModal(serviceId, serviceName) {
+    document.getElementById('delete_service_id_input').value = serviceId;
+    document.getElementById('remove-service-name').textContent = serviceName;
+    const modal = document.getElementById('remove-service-modal');
+    if (modal && typeof modal.showModal === 'function') {
+      modal.showModal();
+    } else {
+      modal.setAttribute('open', '');
+    }
+  }
+
+  function closeRemoveModal() {
+    const modal = document.getElementById('remove-service-modal');
+    if (modal && typeof modal.close === 'function') {
+      modal.close();
+    } else {
+      modal.removeAttribute('open');
+    }
+  }
+
+  function confirmRemoveService() {
+    window.isSubmitting = true;
+    document.getElementById('remove-service-form').submit();
+  }
+
+  function formatTime12Hr(timeStr) {
+    if (!timeStr) return '';
+    const [h, m] = timeStr.split(':');
+    let hour = parseInt(h, 10);
+    const ampm = hour >= 12 ? 'PM' : 'AM';
+    hour = hour % 12 || 12;
+    return `${hour}:${m} ${ampm}`;
+  }
+
+  function showErr(id, msg) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    if (msg) {
+      el.textContent = msg;
+      el.style.display = 'block';
+    } else {
+      el.textContent = '';
+      el.style.display = 'none';
+    }
+  }
+
+  function validateShopForm() {
+    if (document.activeElement && document.activeElement.name === 'add_new_service') {
+      window.isSubmitting = true;
+      return true;
+    }
+
+    let isValid = true;
+
+    const name = document.getElementsByName('name')[0].value.trim();
+    const rawContact = document.getElementsByName('contact_number')[0].value.trim();
+    const contactDigits = rawContact.replace(/[\s\-]/g, '');
+    const address = document.getElementsByName('address')[0].value.trim();
+    const hoursFrom = document.getElementById('hours_from').value.trim();
+    const hoursTo = document.getElementById('hours_to').value.trim();
+
+    if (!name) {
+      showErr('err-name', 'Shop name cannot be empty.');
+      isValid = false;
+    } else {
+      showErr('err-name', '');
+    }
+
+    if (!contactDigits) {
+      showErr('err-contact', 'Contact number cannot be empty.');
+      isValid = false;
+    } else if (!/^09\d{9}$/.test(contactDigits)) {
+      showErr('err-contact', 'Contact number must start with "09" and contain 11 numbers.');
+      isValid = false;
+    } else {
+      showErr('err-contact', '');
+    }
+
+    if (!address) {
+      showErr('err-address', 'Address cannot be empty.');
+      isValid = false;
+    } else {
+      showErr('err-address', '');
+    }
+
+    if (!hoursFrom || !hoursTo) {
+      showErr('err-hours', 'Please select both opening and closing hours.');
+      isValid = false;
+    } else if (hoursFrom >= hoursTo) {
+      showErr('err-hours', 'Closing time must be later than opening time.');
+      isValid = false;
+    } else {
+      showErr('err-hours', '');
+      document.getElementById('opening_hours_hidden').value = `${formatTime12Hr(hoursFrom)} – ${formatTime12Hr(hoursTo)}`;
+    }
+
+    const dropoff = document.getElementsByName('offers_dropoff')[0].checked;
+    const pickup = document.getElementsByName('offers_pickup')[0].checked;
+    const delivery = document.getElementsByName('offers_delivery')[0].checked;
+    if (!dropoff && !pickup && !delivery) {
+      showErr('err-offers', 'You must offer at least one service (Drop-off, Pickup, or Delivery).');
+      isValid = false;
+    } else {
+      showErr('err-offers', '');
+    }
+
+    const cash = document.getElementsByName('accepts_cash')[0].checked;
+    const gcash = document.getElementsByName('accepts_gcash')[0].checked;
+    const rawGcashNum = document.getElementsByName('gcash_number')[0].value.trim();
+    const gcashDigits = rawGcashNum.replace(/[\s\-]/g, '');
+    const gcashName = document.getElementsByName('gcash_name')[0].value.trim();
+
+    if (!cash && !gcash) {
+      showErr('err-payments', 'You must accept at least one payment method (Cash or GCash).');
+      isValid = false;
+    } else {
+      showErr('err-payments', '');
+    }
+
+    if (gcash) {
+      if (!gcashDigits) {
+        showErr('err-gcash-num', 'GCash number cannot be empty.');
+        isValid = false;
+      } else if (!/^09\d{9}$/.test(gcashDigits)) {
+        showErr('err-gcash-num', 'GCash number must start with "09" and contain 11 numbers.');
+        isValid = false;
+      } else {
+        showErr('err-gcash-num', '');
+      }
+
+      if (!gcashName) {
+        showErr('err-gcash-name', 'Account name cannot be empty.');
+        isValid = false;
+      } else {
+        showErr('err-gcash-name', '');
+      }
+    } else {
+      showErr('err-gcash-num', '');
+      showErr('err-gcash-name', '');
+    }
+
+    window.isSubmitting = isValid;
+    return isValid;
+  }
+</script>
 {% endblock %}
 
 {% block modals %}
-<!-- Shown when leaving the page with unsaved changes -->
+<dialog class="modal modal-sm" id="remove-service-modal" aria-labelledby="remove-service-title">
+  <div class="modal-body">
+    <span class="circle warn">!</span>
+    <h2 id="remove-service-title">Remove service?</h2>
+    <p class="text-14">Are you sure you want to remove <strong id="remove-service-name"></strong>? Existing bookings will not be affected.</p>
+    <div class="modal-actions">
+      <button class="btn btn-outline" type="button" onclick="closeRemoveModal()">Cancel</button>
+      <button class="btn btn-danger" type="button" onclick="confirmRemoveService()">Remove</button>
+    </div>
+  </div>
+</dialog>
+
 <dialog class="modal" id="unsaved-modal" aria-labelledby="unsaved-title">
   <div class="modal-body">
     <span class="circle warn">!</span>

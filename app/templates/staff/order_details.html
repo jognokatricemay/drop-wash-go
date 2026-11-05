@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{#- Figma: 23-staff-order-details + 24 / 24a / 24b Confirm weight pop-ups.  Owner: Member 6 -#}
+{#- Figma: 23-staff-order-details + 24 / 24a / 24b Confirm weight pop-ups. Owner: Member 6 -#}
 {% from "_macros.html" import page_head, row, pill, input %}
 {% set role = "staff" %}{% set active = "Orders" %}
 {% block title %}#{{ b.order_code }}{% endblock %}
@@ -31,6 +31,16 @@
       {% else %}
         {{ row("How the customer pays", ("On delivery" if delivers else "At the counter") ~ " · " ~ payment_methods(b)) }}
         <p class="muted small">Collect payment {{ "when you deliver" if delivers else "when the customer picks it up" }}, then use Mark as paid.</p>
+        
+        {% if not price.estimated and g.shop.accepts_gcash and g.shop.gcash_number %}
+        <div style="background: var(--bg-soft, #f8f9fa); padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-top: 10px;">
+          <p style="margin: 0 0 8px 0; font-weight: 500;">GCash Details for Customer Payment:</p>
+          <div style="display: flex; flex-direction: column; gap: 4px; font-size: 0.9em;">
+            <span><strong>Number:</strong> {{ g.shop.gcash_number }}</span>
+            {% if g.shop.gcash_name %}<span><strong>Name:</strong> {{ g.shop.gcash_name }}</span>{% endif %}
+          </div>
+        </div>
+        {% endif %}
       {% endif %}
     </section>
   </div>
@@ -58,10 +68,11 @@
 {% block modals %}
 {% set delivers = b.handling == "pickup-delivery" %}
 {% set start = b.actual_weight if b.actual_weight is not none else b.est_weight %}
+{% set input_val = weight_val if weight_val is not none else (start|kg) %}
 <!-- Confirm weight pop-up -->
 <dialog class="modal" id="weight-modal" aria-labelledby="weight-title">
   <form class="modal-body" id="weight-form" method="post" action="{{ url_for('staff.confirm_weight', booking_id=b.id) }}"
-        data-rate="{{ b.rate }}" data-fee="{{ price.fee }}">
+        data-rate="{{ b.rate }}" data-fee="{{ price.fee }}" novalidate>
     <div class="modal-head">
       <div>
         <h2 id="weight-title">Confirm weight</h2>
@@ -69,11 +80,16 @@
       </div>
       <button class="icon-btn" type="button" data-cancel aria-label="Close">×</button>
     </div>
+    
     <div class="field">
       <label for="actual_weight">Actual weight ({{ b.unit }})</label>
-      {{ input("actual_weight", start|kg, "number", extra='min="0.1" step="0.1" required') }}
-      <span class="muted small">Booking estimate: {{ b.est_weight|kg }} {{ b.unit }}</span>
+      {{ input("actual_weight", input_val, "number", extra='min="0.1" step="0.1"' ~ (' style="border-color: var(--danger, #dc3545);"' if weight_error else '')) }}
+      <p id="weight-err-text" style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 4px 0 0 0; font-weight: 500; {% if not weight_error %}display: none;{% endif %}">
+        {{ weight_error if weight_error else '' }}
+      </p>
+      <span class="muted small" style="margin-top: 4px;">Booking estimate: {{ b.est_weight|kg }} {{ b.unit }}</span>
     </div>
+
     <hr class="divider">
     <div class="row"><span>Laundry ({{ b.rate|peso }} x <span data-w="kg">{{ start|kg }}</span> {{ b.unit }})</span><span data-w="laundry">{{ (b.rate * start)|peso(2) }}</span></div>
     {% if delivers %}<div class="row"><span>Delivery fee (fixed)</span><span>{{ price.fee|peso }}</span></div>{% endif %}
@@ -99,4 +115,69 @@
     </div>
   </div>
 </dialog>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const wForm = document.getElementById('weight-form');
+    const wInput = document.getElementById('actual_weight');
+    const errEl = document.getElementById('weight-err-text');
+    const openBtn = document.getElementById('open-weight');
+
+    function setWeightError(msg) {
+      if (errEl) {
+        errEl.textContent = msg;
+        errEl.style.display = msg ? 'block' : 'none';
+      }
+      if (wInput) {
+        wInput.style.borderColor = msg ? 'var(--danger, #dc3545)' : '';
+      }
+    }
+
+    if (openBtn) {
+      openBtn.addEventListener('click', () => setWeightError(''));
+    }
+
+    if (wInput) {
+      wInput.addEventListener('input', () => {
+        const raw = wInput.value.trim();
+        const num = Number(raw);
+        if (raw && !isNaN(num) && num > 0 && num <= 100) {
+          setWeightError('');
+        }
+      });
+    }
+
+    if (wForm) {
+      wForm.addEventListener('submit', (e) => {
+        const raw = wInput ? wInput.value.trim() : '';
+        const num = Number(raw);
+
+        if (!raw) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          setWeightError('Actual weight cannot be empty.');
+          return false;
+        }
+        if (isNaN(num) || num <= 0 || num > 100) {
+          e.preventDefault();
+          e.stopImmediatePropagation();
+          setWeightError('Enter a valid weight (more than 0 and up to 100).');
+          return false;
+        }
+        setWeightError('');
+      });
+    }
+
+    {% if weight_error %}
+    const modal = document.getElementById('weight-modal');
+    if (modal && typeof modal.showModal === 'function' && !modal.open) {
+      modal.showModal();
+    }
+    if (wInput) {
+      wInput.value = {{ (weight_val or '')|tojson }};
+      wInput.style.borderColor = 'var(--danger, #dc3545)';
+    }
+    {% endif %}
+  });
+</script>
 {% endblock %}
