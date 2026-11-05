@@ -72,7 +72,7 @@ check("customer login", r.status_code == 302 and r.headers["Location"].endswith(
 check("unread notification dot shown in navigation",
       "nav-unread-dot" in c.get("/home").get_data(as_text=True))
 for url, text in [("/home", "Hi, Juan"), ("/shops", "Wash Hub"), ("/shops/3", "No pickup"), ("/shops/1/book", "Review booking"),
-                  ("/shops/3/book", "only offers drop-off"), ("/orders", "#DWG-00483"), ("/orders?tab=past", "Booking request"),
+                  ("/shops/3/book", "only offers drop-off"), ("/orders", "#MFL-00483"), ("/orders?tab=past", "Booking request"),
                   ("/orders/483", "Pay on delivery"), ("/orders/484", "could not accept"), ("/notifications", "Booking accepted"),
                   ("/profile", "Juan Dela Cruz")]:
     get(c, url, contains=text)
@@ -131,14 +131,14 @@ s = app.test_client()
 r = s.post("/shop/login", data={"username": "fe.reyes", "password": "password123"})
 check("staff login", r.status_code == 302 and r.headers["Location"].endswith("/shop/dashboard"))
 for url, text in [("/shop/dashboard", "Needs attention"), ("/shop/requests", "Juan Dela Cruz"), ("/shop/requests?tab=Rejected", None),
-                  ("/shop/orders", "#DWG-00482"), ("/shop/orders?q=Maria", "Maria Santos"), ("/shop/orders/483", "Confirm weight"),
+                  ("/shop/orders", "#MFL-00482"), ("/shop/orders?q=Maria", "Maria Santos"), ("/shop/orders/483", "Confirm weight"),
                   ("/shop/orders/482/status", "Ready for Delivery"), ("/shop/orders/482/paid", "Amount due"),
                   ("/shop/profile", "Mama Fe Laundry"), ("/shop/shop-info", "Save changes")]:
     get(s, url, contains=text)
 get(s, "/shop/dashboard", contains="Pickups today")
 pickup_page = get(s, "/shop/pickups/today", contains="Juan Dela Cruz").get_data(as_text=True)
 check("pickup details are scoped to this shop", "123 Mabini St." in pickup_page
-      and "#DWG-00482" not in pickup_page)
+      and "#MFL-00482" not in pickup_page)
 for username in ("cf.staff", "washhub"):
     shop_staff = app.test_client()
     shop_staff.post("/shop/login", data={"username": username, "password": "password123"})
@@ -200,7 +200,7 @@ check("completed order can't change status", "can&#39;t be changed anymore" in r
 r = s.post("/shop/orders/482/weight", data={"actual_weight": "9"}, follow_redirects=True)
 check("completed order: weight can't change", "can&#39;t be changed anymore" in r.get_data(as_text=True) or "can't be changed anymore" in r.get_data(as_text=True))
 get(s, "/shop/dashboard", contains="completed but not paid")
-get(s, "/shop/orders?tab=unpaid", contains="DWG-00482")
+get(s, "/shop/orders?tab=unpaid", contains="MFL-00482")
 
 # staff notifications (new request) and the customer's cancel after the shop accepted
 get(s, "/shop/notifications", contains="New booking request")
