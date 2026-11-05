@@ -1,4 +1,4 @@
-"""Sample data matching the Figma design (Mama Fe Laundry, Juan Dela Cruz, #DWG-00483...).
+"""Sample data matching the Figma design (Mama Fe Laundry, Juan Dela Cruz, #MFL-00483...).
 
 Demo accounts (password for all: password123)
   Customer: 09171234567   (Juan Dela Cruz)
@@ -73,30 +73,30 @@ def seed():
         # id, code, customer, shop, service, rate, unit, handling, fee, est, actual, date, time,
         # confirmed, delivery, address, notes, status, reason, payment, method
         bookings = [
-            (478, "DWG-00478", 4, 1, "Wash & Fold", 35, "kg", "drop-off", 0, 6, 6, d(-6), "9-11 AM", "9-11 AM", None, None, None, "Completed", None, "Paid", "cash"),
-            (480, "DWG-00480", 3, 1, "Wash & Fold", 35, "kg", "drop-off", 0, 7, 7, d(-1), "8-10 AM", "8-10 AM", None, None, None, "Processing", None, "Unpaid", None),
-            (481, "DWG-00481", 1, 2, "Wash & Fold", 35, "kg", "drop-off", 0, 7, 7, d(-1), "1-3 PM", "1-3 PM", None, None, None, "Processing", None, "Unpaid", None),
-            (482, "DWG-00482", 2, 1, "Wash & Fold", 35, "kg", "pickup-delivery", 50, 3, 3.5, d(-2), "1-3 PM", "1-3 PM", "3-6 PM", "45 Rizal St., Balete", None, "Ready for Delivery", None, "Unpaid", None),
-            (483, "DWG-00483", 1, 1, "Wash & Fold", 35, "kg", "pickup-delivery", 50, 3, None, d(0), "9-11 AM", "9-11 AM", None, "123 Mabini St., Balete", "Separate whites, no fabric softener", "Accepted", None, "Unpaid", None),
+            (478, "MFL-00478", 4, 1, "Wash & Fold", 35, "kg", "drop-off", 0, 6, 6, d(-6), "9-11 AM", "9-11 AM", None, None, None, "Completed", None, "Paid", "cash"),
+            (480, "MFL-00480", 3, 1, "Wash & Fold", 35, "kg", "drop-off", 0, 7, 7, d(-1), "8-10 AM", "8-10 AM", None, None, None, "Processing", None, "Unpaid", None),
+            (481, "CNF-00481", 1, 2, "Wash & Fold", 35, "kg", "drop-off", 0, 7, 7, d(-1), "1-3 PM", "1-3 PM", None, None, None, "Processing", None, "Unpaid", None),
+            (482, "MFL-00482", 2, 1, "Wash & Fold", 35, "kg", "pickup-delivery", 50, 3, 3.5, d(-2), "1-3 PM", "1-3 PM", "3-6 PM", "45 Rizal St., Balete", None, "Ready for Delivery", None, "Unpaid", None),
+            (483, "MFL-00483", 1, 1, "Wash & Fold", 35, "kg", "pickup-delivery", 50, 3, None, d(0), "9-11 AM", "9-11 AM", None, "123 Mabini St., Balete", "Separate whites, no fabric softener", "Accepted", None, "Unpaid", None),
             (484, None, 1, 3, "Wash & Fold", 35, "kg", "drop-off", 0, 3, None, d(-3), "9-11 AM", None, None, None, None, "Rejected", "Fully booked on that day.", "Unpaid", None),
             (485, None, 1, 2, "Wash & Fold", 35, "kg", "drop-off", 0, 3, None, d(1), "9-11 AM", None, None, None, None, "Pending", None, "Unpaid", None),
             (486, None, 2, 1, "Wash & Fold", 35, "kg", "pickup-delivery", 50, 3, None, d(1), "1-3 PM", None, None, "45 Rizal St., Balete", None, "Pending", None, "Unpaid", None),
             (487, None, 3, 1, "Wash, Dry & Fold", 50, "kg", "drop-off", 0, 7, None, d(2), "8-10 AM", None, None, None, "Hang dry the polo shirts", "Pending", None, "Unpaid", None),
-            (488, "MYL-00488", 2, 4, "Wash, Dry & Fold", 50, "kg", "drop-off", 0, 7, 7, d(-4), "11-12 PM", "2-5 PM", None, None, None, "Completed", None, "Paid", "gcash"),
-            (489, "MYL-00489", 4, 4, "Dry Clean", 120, "piece", "drop-off", 0, 3, 3, d(-3), "10-12 PM", "10-12 PM", None, None, "Handle with care - suit jacket", "Completed", None, "Paid", "cash"),
+            (488, "ML-00488", 2, 4, "Wash, Dry & Fold", 50, "kg", "drop-off", 0, 7, 7, d(-4), "11-12 PM", "2-5 PM", None, None, None, "Completed", None, "Paid", "gcash"),
+            (489, "ML-00489", 4, 4, "Dry Clean", 120, "piece", "drop-off", 0, 3, 3, d(-3), "10-12 PM", "10-12 PM", None, None, "Handle with care - suit jacket", "Completed", None, "Paid", "cash"),
             (490, "CQL-00490", 1, 5, "Wash & Fold", 35, "kg", "pickup-delivery", 50, 4, 4, d(-2), "9-11 AM", "9-11 AM", "2-5 PM", "153 Mabini St., Balete", None, "Completed", None, "Paid", "gcash"),
-            (491, "WE-00491", 3, 6, "Comforter / Bedding", 150, "piece", "drop-off", 0, 5, 5, d(-2), "3-4 PM", "11-1 PM", None, None, "Use hypoallergenic detergent", "Completed", None, "Paid", "cash"),
+            (491, "WE-00491", 3, 6, "Comforter / Bedsheet", 150, "piece", "drop-off", 0, 5, 5, d(-2), "3-4 PM", "11-1 PM", None, None, "Use hypoallergenic detergent", "Completed", None, "Paid", "cash"),
             (492, "CQL-00492", 2, 5, "Wash & Fold", 35, "kg", "pickup-delivery", 50, 3, 3, d(-1), "9-11 AM", "8-10 AM", "1-4 PM", "45 Rizal St., Balete", None, "Ready for Delivery", None, "Paid", "gcash"),
             (493, "WE-00493", 4, 6, "Wash, Dry & Fold", 50, "kg", "drop-off", 0, 6, 6, d(-1), "11-1 AM", "11-1 AM", None, None, None, "Processing", None, "Unpaid", None),
             (494, "WE-00494", 1, 6, "Dry Clean", 120, "piece", "pickup-delivery", 60, 4, 4, d(0), "1-3 PM", "1-3 PM", "5-7 PM", "172 Mabini St., Balete", "Press pleats on skirt", "Ready for Delivery", None, "Unpaid", None),
             (495, "CQL-00495", 3, 5, "Wash & Fold", 35, "kg", "drop-off", 0, 3, None, d(0), "9-11 AM", "9-11 AM", None, None, None, "Accepted", None, "Unpaid", None),
             (496, "WE-00496", 2, 6, "Wash, Dry & Fold", 50, "kg", "pickup-delivery", 50, 4, None, d(0), "2-4 PM", "2-4 PM", None, "45 Rizal St., Balete", "No fabric softener please", "Accepted", None, "Unpaid", None),
-            (497, "MYL-00497", 4, 4, "Comforter / Bedding", 150, "piece", "drop-off", 0, 5, None, d(1), "11-1 PM", None, None, None, None, "Pending", None, "Unpaid", None),
-            (498, "MYL-00498", 1, 4, "Wash & Fold", 35, "kg", "pickup", 0, 3, None, d(1), "9-11 AM", None, None, "23 Mabini St., Balete", None, "Pending", None, "Unpaid", None),
-            (499, "MYL-00499", 3, 4, "Dry Clean", 120, "piece", "drop-off", 0, 4, None, d(2), "1-3 PM", None, None, None, "Winter coat - dry clean only", "Pending", None, "Unpaid", None),
+            (497, "ML-00497", 4, 4, "Comforter / Bedsheet", 150, "piece", "drop-off", 0, 5, None, d(1), "11-1 PM", None, None, None, None, "Pending", None, "Unpaid", None),
+            (498, "ML-00498", 1, 4, "Wash & Fold", 35, "kg", "pickup", 0, 3, None, d(1), "9-11 AM", None, None, "23 Mabini St., Balete", None, "Pending", None, "Unpaid", None),
+            (499, "ML-00499", 3, 4, "Dry Clean", 120, "piece", "drop-off", 0, 4, None, d(2), "1-3 PM", None, None, None, "Winter coat - dry clean only", "Pending", None, "Unpaid", None),
             (500, "CQL-00500", 2, 5, "Wash & Fold", 35, "kg", "drop-off", 0, 3, None, d(2), "3-5 PM", None, None, None, None, "Pending", None, "Unpaid", None),
             (501, "WE-00501", 4, 6, "Wash, Dry & Fold", 50, "kg", "pickup-delivery", 50, 4, None, d(3), "9-11 AM", None, None, "789 Laurel St., Tanauan", "Separate dark colors", "Pending", None, "Unpaid", None),
-            (502, None, 1, 4, "Comforter / Bedding", 150, "piece", "drop-off", 0, 5, None, d(3), "3-5 PM", None, None, None, None, "Pending", None, "Unpaid", None),
+            (502, None, 1, 4, "Comforter / Bedsheet", 150, "piece", "drop-off", 0, 5, None, d(3), "3-5 PM", None, None, None, None, "Pending", None, "Unpaid", None),
         ]
         cur.executemany(
             """INSERT INTO bookings (id, order_code, customer_id, shop_id, service_name, rate, unit, handling,
@@ -105,16 +105,16 @@ def seed():
                VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)""",
             bookings,
         )
-        # next new booking gets id 503 -> DWG-00503
+        # next new booking gets id 503 (its code gets the shop's prefix, e.g. MFL-00503)
         cur.execute("ALTER TABLE bookings AUTO_INCREMENT = 503")
 
         cur.executemany(
             "INSERT INTO notifications (user_id, booking_id, kind, title, body, is_read) VALUES (%s,%s,%s,%s,%s,%s)",
             [
-                (1, 483, "success", "Booking accepted", "#DWG-00483 · Pickup confirmed, 9-11 AM", 1),
-                (1, 481, "info", "Your laundry is being processed", "#DWG-00481 · Final total ₱245.00 (7 kg)", 1),
+                (1, 483, "success", "Booking accepted", "#MFL-00483 · Pickup confirmed, 9-11 AM", 1),
+                (1, 481, "info", "Your laundry is being processed", "#CNF-00481 · Final total ₱245.00 (7 kg)", 1),
                 (1, 484, "error", "Booking not accepted", "Wash Hub · Fully booked on that day.", 0),
-                (1, 488, "success", "Booking accepted", "#MYL-00488 · Pick-up confirmed, 11-12 PM", 1),
+                (1, 488, "success", "Booking accepted", "#ML-00488 · Pick-up confirmed, 11-12 PM", 1),
                 (1, 491, "success", "Booking accepted", "#WE-00491 · Pick-up confirmed, 2-4 PM", 1),
                 
             ],

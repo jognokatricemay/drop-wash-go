@@ -147,7 +147,7 @@ We interviewed customers and laundry shop staff/owners. Summary of the findings:
 - **Figma file:** https://www.figma.com/design/f9YPqdFByHc4p9Z3adJytf/Drop--Wash--Go. It has phone screens (`##-phone-customer-…`, `##-phone-staff-…`) and PC screens (`##-PC-customer-…`, `##-PC-staff-…`), prototype flows, and a components library.
 - **Visual identity:** a droplet logo with a shine. The customer side uses the Primary (blue) color and the staff side uses ink (dark navy). Fonts are Bricolage Grotesque (headings) and Plus Jakarta Sans (body).
 - **Key screens:** Welcome, Login (with "Browse shops" as a guest), Create account, Shop list (tags: Drop-off / Pickup / Delivery), Shop details (services and rates, accepted payments), Book laundry (with validation errors), Review booking, Booking request sent, My orders, Order tracking, Order details, Notifications, Profile. Staff screens: Register shop, Dashboard, Booking requests, Booking details (change the schedule), Accept/Reject, Orders, Order details (confirm weight), Update status (delivery schedule), Mark as paid (payment method), Shop info (handling toggles, services and rates, accepted payments).
-- **Sample data:** shops include Mama Fe Laundry (pickup + delivery), Clean & Fresh, and Wash Hub (drop-off only). Sample orders: #DWG-00483 (Juan), #DWG-00481, #DWG-00480 (Pedro Reyes).
+- **Sample data:** shops include Mama Fe Laundry (pickup + delivery), Clean & Fresh, and Wash Hub (drop-off only). Sample orders: #MFL-00483 (Juan), #CNF-00481, #MFL-00480 (Pedro Reyes).
 
 ### Tech stack (planned)
 - **Backend:** Python with Flask
