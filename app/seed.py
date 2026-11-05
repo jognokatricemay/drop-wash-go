@@ -115,7 +115,7 @@ def seed():
                 (1, 484, "error", "Booking not accepted", "Wash Hub · Fully booked on that day.", 0),
                 (1, 488, "success", "Booking accepted", "#MYL-00488 · Pick-up confirmed, 11-12 PM", 1),
                 (1, 491, "success", "Booking accepted", "#WEX-00491 · Pick-up confirmed, 2-4 PM", 1),
-                (1, 502, "success", "Booking not accepted", "#WEX-00502 · Pick-up cancelled, 3-5 PM", 1),
+                (1, 502, "error", "Booking not accepted", "#WEX-00502 · Pick-up cancelled, 3-5 PM", 1),
             ],
         )
     db.commit()
