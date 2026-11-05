@@ -115,9 +115,7 @@ def order_details(booking_id):
     if not b["order_code"]:
         return redirect(url_for("staff.booking_details", booking_id=b["id"]))
     
-    # Kukuha ng error kung galing sa submit weight form
     weight_error = request.args.get('weight_error')
-    
     return render_template("staff/order_details.html", b=b, price=booking_price(b), weight_error=weight_error)
 
 
@@ -126,14 +124,15 @@ def order_details(booking_id):
 def confirm_weight(booking_id):
     """The Confirm weight pop-up on the order details page posts here."""
     b = shop_booking(booking_id)
+    raw_weight = request.form.get("actual_weight", "").strip()
+    if not raw_weight:
+        return redirect(url_for("staff.order_details", booking_id=b["id"], weight_error="Actual weight is required."))
     try:
-        weight = Decimal(request.form.get("actual_weight", ""))
-        # Binago to block 0 or negative
-        if weight <= 0 or weight > 100:
+        weight = Decimal(raw_weight)
+        if weight <= 0 or weight > 100 or weight != weight.to_integral_value():
             raise InvalidOperation
     except (InvalidOperation, ValueError):
-        # I-redirect pabalik na may red text error
-        return redirect(url_for("staff.order_details", booking_id=b["id"], weight_error="Enter a valid whole weight (1 or more)."))
+        return redirect(url_for("staff.order_details", booking_id=b["id"], weight_error="Enter a valid whole weight (1 to 100)."))
         
     new_status = "Processing" if b["status"] == "Accepted" else b["status"]
     execute("UPDATE bookings SET actual_weight=%s, status=%s WHERE id=%s", [weight, new_status, b["id"]])
@@ -199,116 +198,190 @@ def mark_paid(booking_id):
 
 # ---------- Member 6: shop info and profile ----------
 
+def _parse_opening_hours(hours_str):
+    """Converts '8:00 AM – 6:00 PM' into ('08:00', '18:00') for time inputs."""
+    import re
+    from datetime import datetime
+    if not hours_str:
+        return "08:00", "18:00"
+    parts = re.split(r'\s*(?:–|-|to)\s*', hours_str.strip(), flags=re.IGNORECASE)
+    if len(parts) == 2:
+        res = []
+        for p in parts:
+            p_clean = p.strip().upper()
+            for fmt in ("%I:%M %p", "%I %p", "%H:%M"):
+                try:
+                    res.append(datetime.strptime(p_clean, fmt).strftime("%H:%M"))
+                    break
+                except ValueError:
+                    pass
+        if len(res) == 2:
+            return res[0], res[1]
+    return "08:00", "18:00"
+
+
+def _format_12hr(time_24):
+    from datetime import datetime
+    try:
+        dt = datetime.strptime(time_24.strip(), "%H:%M")
+        return dt.strftime("%I:%M %p").lstrip("0")
+    except ValueError:
+        return time_24
+
+
 @bp.route("/shop-info", methods=["GET", "POST"])
 @login_required("staff")
 def shop_info():
+    import re
+    from flask import session
     shop = g.shop
+    services = query("SELECT * FROM services WHERE shop_id=%s ORDER BY id", [shop["id"]])
     
+    status_msg = session.pop("shop_status_msg", None)
+    add_service_error = session.pop("add_service_error", None)
+    add_service_data = session.pop("add_service_data", {"name": "", "rate": "", "unit": "kg"})
+    shop_errors = {}
+    form_data = None
+    hours_from, hours_to = _parse_opening_hours(shop.get("opening_hours", ""))
+
     if request.method == "POST":
         f = request.form
 
-        # TASK: Remove service
+        # 1. REMOVE SERVICE (Walang flash() para walang gray box sa taas!)
         if "delete_service_id" in f:
             count = query("SELECT COUNT(*) as c FROM services WHERE shop_id=%s", [shop["id"]], one=True)["c"]
             if count <= 1:
-                flash("Cannot remove. Your shop must have at least one service.")
+                session["shop_status_msg"] = "Cannot remove. Your shop must have at least one service."
             else:
                 try:
                     execute("DELETE FROM services WHERE id=%s AND shop_id=%s", [f["delete_service_id"], shop["id"]])
-                    flash("Service removed.")
+                    session["shop_status_msg"] = "Service removed."
                 except Exception:
-                    flash("Cannot remove a service that is currently used in bookings.")
+                    session["shop_status_msg"] = "Cannot remove a service that is currently used in bookings."
             return redirect(url_for("staff.shop_info"))
 
-        # TASK: Add service
+        # 2. ADD NEW SERVICE (Error stays directly under "Add new service")
         elif "add_new_service" in f:
             new_name = f.get("new_service_name", "").strip()
             new_rate = f.get("new_service_rate", "").strip()
             new_unit = f.get("new_service_unit", "kg").strip()
             
-            # Gagamit tayo ng specific flash categories para maitapat sa "Add Service" section
+            err = None
             if not new_name:
-                flash("Service name cannot be empty.", "add_service_error")
+                err = "Service name cannot be empty."
             elif not new_rate:
-                flash("Service rate cannot be empty.", "add_service_error")
+                err = "Service rate cannot be empty."
             else:
                 try:
                     rate_val = Decimal(new_rate.replace("₱", "").replace(",", ""))
                     if rate_val <= 0:
-                        flash("Service rate must be greater than 0.", "add_service_error")
+                        err = "Service rate must be greater than 0."
                     else:
                         existing = query("SELECT id FROM services WHERE shop_id=%s AND LOWER(name)=LOWER(%s)", [shop["id"], new_name])
                         if existing:
-                            flash(f"A service named '{new_name}' already exists.", "add_service_error")
+                            err = f"A service named '{new_name}' already exists."
                         else:
                             execute("INSERT INTO services (shop_id, name, rate, unit) VALUES (%s, %s, %s, %s)",
                                     [shop["id"], new_name, rate_val, new_unit])
-                            flash(f"Service '{new_name}' added successfully.", "success")
+                            session["shop_status_msg"] = f"Service '{new_name}' added."
                 except InvalidOperation:
-                    flash("Invalid rate format.", "add_service_error")
+                    err = "Invalid rate format."
             
-            # Ipapasa ang mga input values gamit ang session (Siguraduhin na may 'session' sa imports mo sa taas)
-            from flask import session
-            session['add_service_data'] = {'name': new_name, 'rate': new_rate, 'unit': new_unit}
+            if err:
+                session["add_service_error"] = err
+                session["add_service_data"] = {"name": new_name, "rate": new_rate, "unit": new_unit}
             return redirect(url_for("staff.shop_info"))
 
-        # KUNG "SAVE CHANGES" (Main form update)
+        # 3. SAVE SHOP CHANGES
         else:
-            # Validations for Main Shop Details
-            errors = []
-            
             name = f.get("name", "").strip()
             contact = f.get("contact_number", "").strip()
             address = f.get("address", "").strip()
-            hours = f.get("opening_hours", "").strip()
+            h_from = f.get("hours_from", "").strip()
+            h_to = f.get("hours_to", "").strip()
             
-            if not name or not contact or not address or not hours:
-                errors.append("Shop details (name, contact, address, opening hours) cannot be empty.")
+            offers_dropoff = "offers_dropoff" in f
+            offers_pickup = "offers_pickup" in f
+            offers_delivery = "offers_delivery" in f
+            accepts_cash = "accepts_cash" in f
+            accepts_gcash = "accepts_gcash" in f
+            gcash_number = f.get("gcash_number", "").strip()
+            gcash_name = f.get("gcash_name", "").strip()
+
+            if not name:
+                shop_errors["name"] = "Shop name cannot be empty."
+            if not contact:
+                shop_errors["contact_number"] = "Contact number cannot be empty."
+            elif not re.match(r"^09\d{9}$", contact):
+                shop_errors["contact_number"] = 'Contact number must start with "09" and contain 11 digits.'
+            if not address:
+                shop_errors["address"] = "Address cannot be empty."
+            if not h_from or not h_to:
+                shop_errors["opening_hours"] = "Please select both opening and closing hours."
+            elif h_from >= h_to:
+                shop_errors["opening_hours"] = "Closing time must be later than opening time."
             
-            # Validation for Offers
-            if not any(k in f for k in ["offers_dropoff", "offers_pickup", "offers_delivery"]):
-                errors.append("You must offer at least one service (Drop-off, Pickup, or Delivery).")
-                
-            # Validation for Payments
-            if not any(k in f for k in ["accepts_cash", "accepts_gcash"]):
-                errors.append("You must accept at least one payment method (Cash or GCash).")
+            if not (offers_dropoff or offers_pickup or offers_delivery):
+                shop_errors["offers"] = "You must offer at least one service (Drop-off, Pickup, or Delivery)."
+            if not (accepts_cash or accepts_gcash):
+                shop_errors["payments"] = "You must accept at least one payment method (Cash or GCash)."
+            if accepts_gcash:
+                if not gcash_number or not re.match(r"^09\d{9}$", gcash_number):
+                    shop_errors["gcash_number"] = 'GCash number must start with "09" and contain 11 digits.'
+                if not gcash_name:
+                    shop_errors["gcash_name"] = "Account name is required when GCash is enabled."
 
-            if errors:
-                for err in errors:
-                    flash(err, "shop_info_error")
-                return redirect(url_for("staff.shop_info"))
+            if shop_errors:
+                hours_from, hours_to = h_from, h_to
+                form_data = {
+                    "name": name, "contact_number": contact, "address": address,
+                    "opening_hours": f.get("opening_hours", ""),
+                    "offers_dropoff": offers_dropoff, "offers_pickup": offers_pickup, "offers_delivery": offers_delivery,
+                    "delivery_fee": f.get("delivery_fee", "0"),
+                    "accepts_cash": accepts_cash, "accepts_gcash": accepts_gcash,
+                    "gcash_number": gcash_number, "gcash_name": gcash_name
+                }
+                return render_template("staff/shop_info.html", shop=shop, services=services,
+                                       shop_errors=shop_errors, form_data=form_data,
+                                       hours_from=hours_from, hours_to=hours_to,
+                                       add_service_error=None, add_service_data=add_service_data,
+                                       status_msg=None)
 
+            opening_hours_formatted = f"{_format_12hr(h_from)} – {_format_12hr(h_to)}"
             try:
                 fee = Decimal((f.get("delivery_fee") or "0").replace("₱", "").replace(",", ""))
+                if fee < 0:
+                    fee = Decimal("0")
             except InvalidOperation:
                 fee = shop["delivery_fee"]
                 
             execute("""UPDATE shops SET name=%s, contact_number=%s, address=%s, opening_hours=%s,
                        offers_dropoff=%s, offers_pickup=%s, offers_delivery=%s, delivery_fee=%s,
                        accepts_cash=%s, accepts_gcash=%s, gcash_number=%s, gcash_name=%s WHERE id=%s""",
-                    [name, contact, address, hours,
-                     "offers_dropoff" in f, "offers_pickup" in f, "offers_delivery" in f, fee,
-                     "accepts_cash" in f, "accepts_gcash" in f, f.get("gcash_number", "").strip() or None,
-                     f.get("gcash_name", "").strip() or None, shop["id"]])
+                    [name, contact, address, opening_hours_formatted,
+                     offers_dropoff, offers_pickup, offers_delivery, fee,
+                     accepts_cash, accepts_gcash, gcash_number or None,
+                     gcash_name or None, shop["id"]])
                      
-            for svc in query("SELECT id FROM services WHERE shop_id=%s", [shop["id"]]):
+            for svc in services:
                 rate = f.get(f"rate_{svc['id']}")
                 if rate:
                     try:
-                        execute("UPDATE services SET rate=%s WHERE id=%s", [Decimal(rate), svc["id"]])
+                        r_val = Decimal(rate)
+                        if r_val > 0:
+                            execute("UPDATE services SET rate=%s WHERE id=%s", [r_val, svc["id"]])
                     except InvalidOperation:
                         pass
             
-            flash("Shop changes saved.", "success")
+            session["shop_status_msg"] = "Shop changes saved. They apply to new bookings only."
             nxt = f.get("next", "")
             return redirect(nxt if nxt.startswith("/") and not nxt.startswith("//") else url_for("staff.shop_info"))
     
-    services = query("SELECT * FROM services WHERE shop_id=%s ORDER BY id", [shop["id"]])
-    
-    from flask import session
-    add_service_data = session.pop('add_service_data', {'name': '', 'rate': '', 'unit': 'kg'})
-    
-    return render_template("staff/shop_info.html", shop=shop, services=services, add_service_data=add_service_data)
+    return render_template("staff/shop_info.html", shop=shop, services=services,
+                           shop_errors=shop_errors, form_data=form_data,
+                           hours_from=hours_from, hours_to=hours_to,
+                           add_service_error=add_service_error, add_service_data=add_service_data,
+                           status_msg=status_msg)
 
 
 @bp.route("/profile", methods=["GET", "POST"])

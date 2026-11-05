@@ -32,7 +32,6 @@
         {{ row("How the customer pays", ("On delivery" if delivers else "At the counter") ~ " · " ~ payment_methods(b)) }}
         <p class="muted small">Collect payment {{ "when you deliver" if delivers else "when the customer picks it up" }}, then use Mark as paid.</p>
         
-        <!-- TASK 8: Ilabas ang GCash details kapag confirmed weight na at may GCash -->
         {% if not price.estimated and g.shop.accepts_gcash and g.shop.gcash_number %}
         <div style="background: var(--bg-soft, #f8f9fa); padding: 12px; border-radius: 8px; border: 1px solid #ddd; margin-top: 10px;">
           <p style="margin: 0 0 8px 0; font-weight: 500;">GCash Details for Customer Payment:</p>
@@ -64,10 +63,10 @@
 {% block modals %}
 {% set delivers = b.handling == "pickup-delivery" %}
 {% set start = b.actual_weight if b.actual_weight is not none else b.est_weight %}
-<!-- Confirm weight pop-up -->
+<!-- Confirm weight pop-up (Added novalidate so browser tooltip doesn't block Red Text) -->
 <dialog class="modal" id="weight-modal" aria-labelledby="weight-title" {% if weight_error %}open{% endif %}>
   <form class="modal-body" id="weight-form" method="post" action="{{ url_for('staff.confirm_weight', booking_id=b.id) }}"
-        data-rate="{{ b.rate }}" data-fee="{{ price.fee }}">
+        data-rate="{{ b.rate }}" data-fee="{{ price.fee }}" novalidate>
     <div class="modal-head">
       <div>
         <h2 id="weight-title">Confirm weight</h2>
@@ -79,15 +78,12 @@
     <div class="field">
       <label for="actual_weight">Actual weight ({{ b.unit }})</label>
       
-      <!-- TASK 7: Naglagay ng style/class para red border kapag may error -->
-      {{ input("actual_weight", start|kg, "number", extra='min="1" step="1" required' ~ (' style="border-color: var(--danger, #dc3545);"' if weight_error else '')) }}
+      {{ input("actual_weight", start|kg, "number", extra='step="1"' ~ (' style="border-color: var(--danger, #dc3545);"' if weight_error else '')) }}
       
-      <!-- TASK 7: RED TEXT ang validation -->
-      {% if weight_error %}
-        <div style="color: var(--danger, #dc3545); font-size: 0.875rem; margin-top: 4px; font-weight: 500;">
-          {{ weight_error }}
-        </div>
-      {% endif %}
+      <!-- RED TEXT VALIDATION -->
+      <p id="weight-err-text" style="color: var(--danger, #dc3545); font-size: 0.875rem; margin: 4px 0 0 0; font-weight: 500; {% if not weight_error %}display: none;{% endif %}">
+        {{ weight_error if weight_error else '' }}
+      </p>
       
       <span class="muted small" style="margin-top: 4px;">Booking estimate: {{ b.est_weight|kg }} {{ b.unit }}</span>
     </div>
@@ -120,7 +116,6 @@
 
 {% if weight_error %}
 <script>
-  // Kapag may error, siguraduhing bumukas ulit ang modal after ma-reload ng flash redirect
   document.addEventListener('DOMContentLoaded', () => {
     const modal = document.getElementById('weight-modal');
     if (modal && typeof modal.showModal === 'function' && !modal.open) {
