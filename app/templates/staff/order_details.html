@@ -49,7 +49,7 @@
     {% if b.status == "Accepted" %}
       <p class="note warn">Weigh the laundry at the shop to set the final price. The order moves to Processing after that.</p>
       <button class="btn btn-primary btn-block" type="button" id="open-weight">Confirm weight</button>
-    {% elif b.status != "Completed" and not price.estimated %}
+    {% elif b.status == "Processing" and not price.estimated %}
       <button class="btn btn-outline btn-block" type="button" id="open-weight">Change weight</button>
     {% endif %}
     {% if b.status in ("Processing", "Ready for Pickup", "Ready for Delivery") %}
@@ -75,7 +75,7 @@
         data-rate="{{ b.rate }}" data-fee="{{ price.fee }}" novalidate>
     <div class="modal-head">
       <div>
-        <h2 id="weight-title">Confirm weight</h2>
+        <h2 id="weight-title">{{ "Confirm weight" if b.status == "Accepted" else "Change weight" }}</h2>
         <p class="muted text-14">#{{ b.order_code }} · {{ b.customer_name }}</p>
       </div>
       <button class="icon-btn" type="button" data-cancel aria-label="Close">×</button>
@@ -98,7 +98,7 @@
     <p class="muted small">The customer is notified of the updated total{{ ", which they pay on delivery" if delivers }}.</p>
     <div class="modal-actions">
       <button class="btn btn-outline" type="button" data-cancel>Cancel</button>
-      <button class="btn btn-primary" type="submit">Save and start processing</button>
+      <button class="btn btn-primary" type="submit">{{ "Save and start processing" if b.status == "Accepted" else "Save weight" }}</button>
     </div>
   </form>
 </dialog>
