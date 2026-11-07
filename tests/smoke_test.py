@@ -187,6 +187,14 @@ check("shop info saved and goes to next page", r.status_code == 302 and r.header
 r = s.post("/shop/orders/483/status", data={"status": "Completed"}, follow_redirects=True)
 check("Accepted order: weight must be confirmed first", "Confirm the weight first" in r.get_data(as_text=True))
 get(s, "/shop/orders/483", contains="Confirm weight")
+# Mark as paid needs an accepted order with a confirmed weight
+check("not weighed yet: no Mark as paid button", "/shop/orders/483/paid" not in s.get("/shop/orders/483").get_data(as_text=True))
+r = s.post("/shop/orders/483/paid", data={"method": "cash", "amount_received": "500"}, follow_redirects=True)
+check("can't mark as paid before the weight is confirmed", "Confirm the weight first" in r.get_data(as_text=True))
+with app.app_context():
+    check("the order stays unpaid", query("SELECT payment_status FROM bookings WHERE id=483", one=True)["payment_status"] == "Unpaid")
+check("the Mark as paid page is closed too", s.get("/shop/orders/483/paid").status_code == 302)
+check("a request without an Order ID can't be marked as paid", s.post("/shop/orders/486/paid", data={"method": "cash", "amount_received": "500"}).status_code == 302)
 r = s.post("/shop/orders/482/status", data={"status": "Processing"})
 check("status can't go back", "skip a step or go back" in r.get_data(as_text=True))
 r = s.post("/shop/orders/482/status", data={"status": "Completed"}, follow_redirects=True)
