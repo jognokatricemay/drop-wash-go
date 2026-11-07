@@ -268,6 +268,10 @@ def update_status(booking_id):
 @login_required("staff")
 def mark_paid(booking_id):
     b = shop_booking(booking_id)
+        # A payment can only be recorded after the shop accepted the order and weighed the laundry (the final price is known)
+    if not b["order_code"] or b["actual_weight"] is None:
+        flash("Confirm the weight first. An order can only be marked as paid after it is accepted and weighed.")
+        return redirect(url_for("staff.order_details", booking_id=b["id"]))
     price = booking_price(b)
     errors = {}
     if request.method == "POST":

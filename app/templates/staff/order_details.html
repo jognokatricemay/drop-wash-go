@@ -60,7 +60,7 @@
     {% elif b.status == "Completed" %}
       <p class="note">This order is done.</p>
     {% endif %}
-    {% if b.payment_status != "Paid" %}<a class="btn {{ 'btn-primary' if b.status == 'Completed' else 'btn-outline' }} btn-block" href="{{ url_for('staff.mark_paid', booking_id=b.id) }}">Mark as paid</a>{% endif %}
+    {% if b.payment_status != "Paid" and b.actual_weight is not none %}<a class="btn {{ 'btn-primary' if b.status == 'Completed' else 'btn-outline' }} btn-block" href="{{ url_for('staff.mark_paid', booking_id=b.id) }}">Mark as paid</a>{% endif %}
   </section>
 </div>
 {% endblock %}
