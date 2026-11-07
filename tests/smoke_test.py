@@ -197,11 +197,16 @@ check("the Mark as paid page is closed too", s.get("/shop/orders/483/paid").stat
 check("a request without an Order ID can't be marked as paid", s.post("/shop/orders/486/paid", data={"method": "cash", "amount_received": "500"}).status_code == 302)
 r = s.post("/shop/orders/482/status", data={"status": "Processing"})
 check("status can't go back", "skip a step or go back" in r.get_data(as_text=True))
+# from Ready on, the weight is locked
+check("Ready for Delivery: no weight button", 'id="open-weight"' not in s.get("/shop/orders/482").get_data(as_text=True))
+r = s.post("/shop/orders/482/weight", data={"actual_weight": "9"}, follow_redirects=True)
+check("Ready for Delivery: weight can't be changed", "can only be set" in r.get_data(as_text=True))
+get(s, "/shop/orders/480", contains="Change weight")
 r = s.post("/shop/orders/482/status", data={"status": "Completed"}, follow_redirects=True)
 html = r.get_data(as_text=True)
 check("completing an unpaid order reminds the staff", "is now Completed" in html and "not marked as paid" in html)
 side = html.split("Next step")[1]
-check("completed order: no Update status or Change weight button", "Update status" not in side and "Change weight" not in side)
+check("completed order: no Update status or weight button", "Update status" not in side and 'id="open-weight"' not in side)
 check("completed order: Mark as paid is still there", "Mark as paid" in side)
 r = s.post("/shop/orders/482/status", data={"status": "Ready for Delivery"}, follow_redirects=True)
 check("completed order can't change status", "can&#39;t be changed anymore" in r.get_data(as_text=True) or "can't be changed anymore" in r.get_data(as_text=True))
@@ -252,7 +257,7 @@ with app.app_context():
     svc_id = query("SELECT id FROM services WHERE shop_id=1 AND name='Dry only'", one=True)["id"]
 r = s.post("/shop/shop-info", data={"delete_service_id": str(svc_id)}, follow_redirects=True)
 check("remove service", "Service removed" in r.get_data(as_text=True) and "Dry only" not in r.get_data(as_text=True).split("Services")[-1])
-r = s.post(f"/shop/orders/{new_id}/weight", data={"actual_weight": "0"}, follow_redirects=True)
+r = s.post("/shop/orders/480/weight", data={"actual_weight": "0"}, follow_redirects=True)
 check("weight 0 is refused with a message", "Enter a valid weight" in r.get_data(as_text=True))
 r = s.post("/shop/profile", data={"current_password": "wrong", "new_password": "newpass123", "confirm_password": "newpass123"})
 check("change password: wrong current password", "Incorrect current password" in r.get_data(as_text=True))

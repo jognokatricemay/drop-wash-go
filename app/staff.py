@@ -176,9 +176,9 @@ def confirm_weight(booking_id):
     if b["status"] == "Completed":
         flash("This order is completed. The weight can't be changed anymore.")
         return redirect(url_for("staff.order_details", booking_id=b["id"]))
-    # the weight is confirmed once, while Accepted; after that it can only be corrected until the order is completed
-    if b["status"] not in status_flow(b) or (b["status"] != "Accepted" and b["actual_weight"] is None):
-        flash("The weight can only be confirmed while the order is Accepted.")
+        # the weight is set while the order is Accepted, and can be corrected while it is Processing; after that it is locked
+    if b["status"] not in ("Accepted", "Processing") or (b["status"] == "Processing" and b["actual_weight"] is None):
+        flash("The weight can only be set while the order is Accepted, or corrected while it is Processing.")
         return redirect(url_for("staff.order_details", booking_id=b["id"]))
     raw_weight = request.form.get("actual_weight", "").strip()
     if not raw_weight:
