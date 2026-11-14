@@ -52,6 +52,10 @@ get(guest, "/", contains="Book your laundry in minutes")
 get(guest, "/", contains="Mama Fe Laundry")          # the shops on the landing page come from the database
 get(guest, "/", contains="/shop/register")
 get(guest, "/get-started", contains="How will you use")
+check("guest: the logo on the shop list goes to the landing page", '<a class="brand-row" href="/" aria-label="Home">' in guest.get("/shops").get_data(as_text=True))
+check("the logo on the login page goes to the landing page", 'href="/" aria-label="Drop, Wash, Go home"' in guest.get("/login").get_data(as_text=True))
+check("the landing page does not name a single town", "Laundry shops in Balete" not in guest.get("/").get_data(as_text=True))
+check("the landing page says the shops and orders are samples", all(w in guest.get("/").get_data(as_text=True) for w in ("Sample shops", "Sample order", "are sample data")))
 check("favicon request does not leave a 'page doesn't exist' message", "That page doesn" not in guest.get("/login").get_data(as_text=True))
 check("a mistyped page still shows the message", "That page doesn" in guest.get("/no-such-page", follow_redirects=True).get_data(as_text=True))
 get(guest, "/login", contains="Welcome back")
@@ -74,6 +78,7 @@ check("customer login", r.status_code == 302 and r.headers["Location"].endswith(
 r = c.get("/")
 check("a logged-in customer skips the landing page", r.status_code == 302 and r.headers["Location"].endswith("/home"))
 check("a logged-in customer skips /get-started too", c.get("/get-started").status_code == 302)
+check("customer: the logo goes to their home page", '<a class="brand-row" href="/home" aria-label="Home">' in c.get("/shops").get_data(as_text=True))
 check("unread notification dot shown in navigation",
       "nav-unread-dot" in c.get("/home").get_data(as_text=True))
 for url, text in [("/home", "Hi, Juan"), ("/shops", "Wash Hub"), ("/shops/3", "No pickup"), ("/shops/1/book", "Review booking"),
@@ -135,6 +140,7 @@ with app.app_context():
 s = app.test_client()
 r = s.post("/shop/login", data={"username": "fe.reyes", "password": "password123"})
 check("staff login", r.status_code == 302 and r.headers["Location"].endswith("/shop/dashboard"))
+check("staff: the logo goes to the dashboard", '<a class="brand-row" href="/shop/dashboard" aria-label="Home">' in s.get("/shop/orders").get_data(as_text=True))
 for url, text in [("/shop/dashboard", "Needs attention"), ("/shop/requests", "Juan Dela Cruz"), ("/shop/requests?tab=Rejected", None),
                   ("/shop/orders", "#MFL-00482"), ("/shop/orders?q=Maria", "Maria Santos"), ("/shop/orders/483", "Confirm weight"),
                   ("/shop/orders/482/status", "Ready for Delivery"), ("/shop/orders/482/paid", "Amount due"),

@@ -5,8 +5,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Drop, Wash, Go · Laundry booking in Balete</title>
-<meta name="description" content="Book laundry shops in Balete: drop-off, pickup or delivery, with order tracking from request to ready.">
+<title>Drop, Wash, Go · Laundry booking made easy</title>
+<meta name="description" content="Book local laundry shops: drop-off, pickup or delivery, with order tracking from request to ready.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
@@ -41,7 +41,7 @@
   <section class="lp-hero">
     <div class="lp-wrap lp-hero-in">
       <div class="lp-copy">
-        <span class="lp-eyebrow">Laundry booking for Balete</span>
+        <span class="lp-eyebrow">Laundry booking made easy</span>
         <h1>Book your laundry in minutes. Track it until it's clean.</h1>
         <p class="lp-lead">Drop, Wash, Go connects you with local laundry shops. Choose drop-off, pickup or delivery, then follow your order from request to ready.</p>
         <div class="lp-cta">
@@ -72,6 +72,7 @@
             <li><span class="dot"></span>Completed</li>
           </ol>
           <div class="lp-total"><span>Total</span><strong>₱172.50</strong></div>
+          <p class="lp-note">Sample order, for illustration only</p>
         </div>
         <div class="lp-toast">
           <span class="lp-toast-dot"></span>
@@ -90,7 +91,7 @@
         <li class="lp-card">
           <span class="lp-num">1</span>
           <h3>Choose a shop</h3>
-          <p>Browse shops in Balete. Compare services, rates and what each shop offers: drop-off, pickup or delivery.</p>
+          <p>Browse local laundry shops. Compare services, rates and what each shop offers: drop-off, pickup or delivery.</p>
         </li>
         <li class="lp-card">
           <span class="lp-num">2</span>
@@ -125,8 +126,8 @@
   <!-- Shops (from the database) -->
   <section class="lp-section" id="shops">
     <div class="lp-wrap">
-      <h2 class="lp-h2">Laundry shops in Balete</h2>
-      <p class="lp-sub">A few of the shops you can book right now.</p>
+      <h2 class="lp-h2">Laundry shops you can book</h2>
+      <p class="lp-sub">Sample shops for this demo.</p>
       <div class="lp-shops">
         {% for s in shops %}
         {% set words = s.name.replace("&", " ").split() %}
@@ -175,12 +176,13 @@
   <section class="lp-section" id="about">
     <div class="lp-wrap lp-about">
       <h2 class="lp-h2">About this project</h2>
-      <p class="lp-sub">Drop, Wash, Go is a student project: a working MVP of a laundry booking system for shops and customers in Balete.</p>
+      <p class="lp-sub">Drop, Wash, Go is a student project: a working MVP of a laundry booking system for laundry shops and their customers.</p>
       <dl class="lp-facts">
         <div><dt>Built by</dt><dd>Group 4, CSSE</dd></div>
         <div><dt>Built with</dt><dd>Flask, MySQL, Jinja</dd></div>
         <div><dt>Hosted on</dt><dd>Render and Aiven</dd></div>
         <div><dt>Not yet included</dt><dd>Online payment. Shops collect payment themselves.</dd></div>
+        <div><dt>Sample data</dt><dd>The shops, customers and orders shown in this demo are sample data.</dd></div>
       </dl>
     </div>
   </section>
