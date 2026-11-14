@@ -48,10 +48,12 @@ with app.app_context():
 
 guest = app.test_client()
 guest.get("/favicon.ico")  # a browser asks for this by itself; it must not leave a message behind
-get(guest, "/", contains="How will you use")
+get(guest, "/", contains="Book your laundry in minutes")
+get(guest, "/", contains="Mama Fe Laundry")          # the shops on the landing page come from the database
+get(guest, "/", contains="/shop/register")
+get(guest, "/get-started", contains="How will you use")
 check("favicon request does not leave a 'page doesn't exist' message", "That page doesn" not in guest.get("/login").get_data(as_text=True))
 check("a mistyped page still shows the message", "That page doesn" in guest.get("/no-such-page", follow_redirects=True).get_data(as_text=True))
-get(guest, "/", contains="How will you use")
 get(guest, "/login", contains="Welcome back")
 get(guest, "/create-account", contains="Create your account")
 get(guest, "/shop/login", contains="Shop login")
@@ -69,6 +71,9 @@ r = c.post("/login", data={"mobile": "09171234567", "password": "wrong"})
 check("wrong password rejected", "Wrong mobile number or password" in r.get_data(as_text=True))
 r = c.post("/login", data={"mobile": "0917 123 4567", "password": "password123"})
 check("customer login", r.status_code == 302 and r.headers["Location"].endswith("/home"))
+r = c.get("/")
+check("a logged-in customer skips the landing page", r.status_code == 302 and r.headers["Location"].endswith("/home"))
+check("a logged-in customer skips /get-started too", c.get("/get-started").status_code == 302)
 check("unread notification dot shown in navigation",
       "nav-unread-dot" in c.get("/home").get_data(as_text=True))
 for url, text in [("/home", "Hi, Juan"), ("/shops", "Wash Hub"), ("/shops/3", "No pickup"), ("/shops/1/book", "Review booking"),

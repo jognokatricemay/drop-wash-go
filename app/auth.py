@@ -47,6 +47,18 @@ def safe_next(default):
 
 @bp.route("/")
 def welcome():
+    """The landing page. Logged-in people go straight to their own home page."""
+    if g.user:
+        return redirect(home_for(g.user))
+    shops = query("""SELECT s.*, MIN(CASE WHEN v.unit='kg' THEN v.rate END) AS from_rate
+                     FROM shops s LEFT JOIN services v ON v.shop_id = s.id
+                     GROUP BY s.id ORDER BY s.id LIMIT 6""")
+    return render_template("auth/landing.html", shops=shops)
+
+
+@bp.route("/get-started")
+def get_started():
+    """Choose customer or shop owner (this used to be the first page)."""
     if g.user:
         return redirect(home_for(g.user))
     return render_template("auth/welcome.html")

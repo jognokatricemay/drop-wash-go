@@ -1,0 +1,203 @@
+{#- Landing page: the first page a visitor sees at "/". The role chooser lives at /get-started.  Owner: Member 1 -#}
+{% from "_icons.html" import icon, logo %}
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Drop, Wash, Go · Laundry booking in Balete</title>
+<meta name="description" content="Book laundry shops in Balete: drop-off, pickup or delivery, with order tracking from request to ready.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+<link rel="stylesheet" href="{{ url_for('static', filename='css/landing.css') }}">
+</head>
+<body class="customer landing">
+
+<header class="lp-nav">
+  <div class="lp-wrap lp-nav-in">
+    <a class="lp-brand" href="{{ url_for('auth.welcome') }}" aria-label="Drop, Wash, Go home">{{ logo() }}<span>Drop, Wash, Go</span></a>
+    <nav class="lp-links" aria-label="Sections">
+      <a href="#how">How it works</a>
+      <a href="#shops">Shops</a>
+      <a href="#for-shops">For shop owners</a>
+      <a href="#about">About</a>
+    </nav>
+    <div class="lp-actions">
+      <a class="btn btn-outline btn-sm" href="{{ url_for('auth.login') }}">Log in</a>
+      <a class="btn btn-primary btn-sm" href="{{ url_for('auth.get_started') }}">Get started</a>
+    </div>
+  </div>
+</header>
+
+{#- messages such as "That page doesn't exist." -#}
+{% with messages = get_flashed_messages() %}{% if messages %}
+<div class="lp-wrap lp-flash">{% for m in messages %}<p class="note" role="status">{{ m }}</p>{% endfor %}</div>
+{% endif %}{% endwith %}
+
+<main>
+  <!-- Hero -->
+  <section class="lp-hero">
+    <div class="lp-wrap lp-hero-in">
+      <div class="lp-copy">
+        <span class="lp-eyebrow">Laundry booking for Balete</span>
+        <h1>Book your laundry in minutes. Track it until it's clean.</h1>
+        <p class="lp-lead">Drop, Wash, Go connects you with local laundry shops. Choose drop-off, pickup or delivery, then follow your order from request to ready.</p>
+        <div class="lp-cta">
+          <a class="btn btn-primary" href="{{ url_for('customer.shops') }}">Find a shop</a>
+          <a class="btn btn-outline" href="{{ url_for('auth.staff_register') }}">I own a laundry shop</a>
+        </div>
+        <ul class="lp-trust">
+          <li>No account needed to browse</li>
+          <li>Pay the shop directly: cash or GCash</li>
+          <li>An update at every step</li>
+        </ul>
+      </div>
+
+      <!-- A picture of the product (decorative) -->
+      <div class="lp-visual" aria-hidden="true">
+        <div class="lp-phone">
+          <div class="lp-order-top">
+            <div>
+              <span class="lp-order-id">#MFL-00483</span>
+              <span class="lp-order-sub">Mama Fe Laundry · Wash &amp; Fold · 3.5 kg</span>
+            </div>
+            <span class="pill ready">Ready for Delivery</span>
+          </div>
+          <ol class="lp-steps">
+            <li class="done"><span class="dot"></span>Accepted</li>
+            <li class="done"><span class="dot"></span>Processing</li>
+            <li class="current"><span class="dot"></span>Ready for Delivery</li>
+            <li><span class="dot"></span>Completed</li>
+          </ol>
+          <div class="lp-total"><span>Total</span><strong>₱172.50</strong></div>
+        </div>
+        <div class="lp-toast">
+          <span class="lp-toast-dot"></span>
+          <div><strong>Your laundry is ready</strong><span>Delivery today, 3-6 PM</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How it works -->
+  <section class="lp-section" id="how">
+    <div class="lp-wrap">
+      <h2 class="lp-h2">How it works</h2>
+      <p class="lp-sub">Three steps, from your door to a fresh pile of laundry.</p>
+      <ol class="lp-grid-3 lp-how">
+        <li class="lp-card">
+          <span class="lp-num">1</span>
+          <h3>Choose a shop</h3>
+          <p>Browse shops in Balete. Compare services, rates and what each shop offers: drop-off, pickup or delivery.</p>
+        </li>
+        <li class="lp-card">
+          <span class="lp-num">2</span>
+          <h3>Send a booking request</h3>
+          <p>Pick a service, estimate your weight and choose a date and time. When the shop accepts, your Order ID is created.</p>
+        </li>
+        <li class="lp-card">
+          <span class="lp-num">3</span>
+          <h3>Track it and collect</h3>
+          <p>Watch your order move from Accepted to Ready. You pay the shop directly when you drop off, pick up or receive delivery.</p>
+        </li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- Features -->
+  <section class="lp-section lp-alt" id="features">
+    <div class="lp-wrap">
+      <h2 class="lp-h2">Made for everyday laundry</h2>
+      <p class="lp-sub">What you can do in Drop, Wash, Go today.</p>
+      <ul class="lp-grid-3 lp-features">
+        <li class="lp-card"><span class="lp-icon">{{ icon("bag") }}</span><h3>Drop-off, pickup or delivery</h3><p>Choose how your laundry gets to the shop and back. Shops show which options they offer.</p></li>
+        <li class="lp-card"><span class="lp-icon">{{ icon("clipboard") }}</span><h3>Clear prices</h3><p>See each shop's rates and delivery fee before you book. The final price is set when your laundry is weighed.</p></li>
+        <li class="lp-card"><span class="lp-icon">{{ icon("grid") }}</span><h3>Order tracking</h3><p>A simple timeline shows where your order is, from Pending to Completed.</p></li>
+        <li class="lp-card"><span class="lp-icon">{{ icon("bell") }}</span><h3>Notifications</h3><p>Get told when a shop accepts your booking, starts washing, or has your laundry ready.</p></li>
+        <li class="lp-card"><span class="lp-icon">{{ icon("calendar") }}</span><h3>Pick your time</h3><p>Choose a date and a time slot. Bookings outside a shop's opening hours are not allowed.</p></li>
+        <li class="lp-card"><span class="lp-icon">{{ icon("user") }}</span><h3>Safe accounts</h3><p>Reset a forgotten password with a security question. Each shop only sees its own orders.</p></li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- Shops (from the database) -->
+  <section class="lp-section" id="shops">
+    <div class="lp-wrap">
+      <h2 class="lp-h2">Laundry shops in Balete</h2>
+      <p class="lp-sub">A few of the shops you can book right now.</p>
+      <div class="lp-shops">
+        {% for s in shops %}
+        {% set words = s.name.replace("&", " ").split() %}
+        <a class="lp-shop" href="{{ url_for('customer.shop_details', shop_id=s.id) }}">
+          <span class="lp-cover">{% for w in words[:3] %}{{ w[0]|upper }}{% endfor %}</span>
+          <h3>{{ s.name }}</h3>
+          <p class="lp-addr">{{ s.address }}</p>
+          <div class="lp-tags">
+            {% if s.offers_dropoff %}<span class="tag">Drop-off</span>{% endif %}
+            {% if s.offers_pickup %}<span class="tag">Pickup</span>{% endif %}
+            {% if s.offers_delivery %}<span class="tag">Delivery</span>{% endif %}
+          </div>
+          <span class="lp-from">From {{ s.from_rate|peso if s.from_rate else "—" }} / kg</span>
+        </a>
+        {% else %}
+        <p class="muted">Shops will show up here once they register.</p>
+        {% endfor %}
+      </div>
+      <div class="lp-center"><a class="btn btn-secondary" href="{{ url_for('customer.shops') }}">See all shops</a></div>
+    </div>
+  </section>
+
+  <!-- For shop owners -->
+  <section class="lp-section lp-dark" id="for-shops">
+    <div class="lp-wrap lp-owner">
+      <div>
+        <span class="lp-eyebrow lp-eyebrow-light">For shop owners</span>
+        <h2 class="lp-h2 lp-on-dark">Run your laundry shop from one place</h2>
+        <p class="lp-sub lp-on-dark-sub">Stop juggling messages and notebooks. Every booking and order is in one dashboard.</p>
+        <div class="lp-cta">
+          <a class="btn btn-primary" href="{{ url_for('auth.staff_register') }}">Register your shop</a>
+          <a class="btn lp-btn-ghost" href="{{ url_for('auth.staff_login') }}">Shop login</a>
+        </div>
+      </div>
+      <ul class="lp-checks">
+        <li>Receive booking requests and accept or reject them</li>
+        <li>An Order ID is created the moment you accept</li>
+        <li>Confirm the weight, update the status and mark orders as paid</li>
+        <li>Set your services, rates, opening hours and delivery fee</li>
+        <li>Get notified of new requests and cancellations</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- About the project -->
+  <section class="lp-section" id="about">
+    <div class="lp-wrap lp-about">
+      <h2 class="lp-h2">About this project</h2>
+      <p class="lp-sub">Drop, Wash, Go is a student project: a working MVP of a laundry booking system for shops and customers in Balete.</p>
+      <dl class="lp-facts">
+        <div><dt>Built by</dt><dd>Group 4, CSSE</dd></div>
+        <div><dt>Built with</dt><dd>Flask, MySQL, Jinja</dd></div>
+        <div><dt>Hosted on</dt><dd>Render and Aiven</dd></div>
+        <div><dt>Not yet included</dt><dd>Online payment. Shops collect payment themselves.</dd></div>
+      </dl>
+    </div>
+  </section>
+</main>
+
+<footer class="lp-footer">
+  <div class="lp-wrap lp-foot-in">
+    <a class="lp-brand lp-brand-light" href="{{ url_for('auth.welcome') }}">{{ logo() }}<span>Drop, Wash, Go</span></a>
+    <nav aria-label="Footer">
+      <a href="{{ url_for('customer.shops') }}">Find a shop</a>
+      <a href="{{ url_for('auth.login') }}">Log in</a>
+      <a href="{{ url_for('auth.staff_login') }}">Shop login</a>
+      <a href="{{ url_for('auth.get_started') }}">Get started</a>
+    </nav>
+    <p>© 2026 Drop, Wash, Go. A student project.</p>
+  </div>
+</footer>
+
+</body>
+</html>
