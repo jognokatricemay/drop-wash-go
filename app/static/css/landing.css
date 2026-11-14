@@ -150,6 +150,7 @@
 .lp-facts { margin: 40px auto 0; max-width: 820px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
 .lp-facts div { padding: 20px 22px; background: var(--main-bg); border: 1px solid var(--border); border-radius: 14px; }
 .lp-facts dt { font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.lp-batch { display: block; width: fit-content; margin-top: 6px; padding: 1px 8px; border-radius: 999px; background: var(--completed-bg); color: var(--completed-txt); font-size: 10px; font-weight: 400; }
 .lp-facts dd { margin: 6px 0 0; font-size: 16px; font-weight: 600; line-height: 1.5; }
 
 /* Footer */
