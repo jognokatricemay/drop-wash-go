@@ -21,7 +21,7 @@
 } -%}
 {%- set guest = guest or not g.user -%}
 {#- The logo goes to the home page; the avatar / name goes to the profile -#}
-{%- set home_href = url_for("customer.shops") if guest else url_for("staff.dashboard" if role == "staff" else "customer.home") -%}
+{%- set home_href = url_for("auth.welcome") if guest else url_for("staff.dashboard" if role == "staff" else "customer.home") -%}
 {%- set initials = (g.user.full_name.split()[0][0] ~ g.user.full_name.split()[-1][0]) if g.user and role == "customer"
                    else ((g.shop.name.replace("&", " ").split()[:2]|map("first")|join) if g.shop else "") -%}
 {%- macro navlink(label, text, href, ic) -%}

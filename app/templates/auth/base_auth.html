@@ -21,7 +21,7 @@
   <body class="{{ role or 'customer' }}">
     <div class="auth{{ ' staff' if role == 'staff' }}">
       <section class="auth-brand">
-        <div class="brand-row">
+        <a class="brand-row" href="{{ url_for('auth.welcome') }}" aria-label="Drop, Wash, Go home">
           {{ logo() }}
           <div>
             <div class="brand-name">Drop, Wash, Go</div>
@@ -29,7 +29,7 @@
             <div class="brand-tag">SHOP</div>
             {% endif %}
           </div>
-        </div>
+        </a>
         <div>
           {% if role == "staff" %}
           <h1>Run your laundry shop bookings in one place.</h1>
