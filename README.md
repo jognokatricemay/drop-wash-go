@@ -7,8 +7,7 @@ Shop staff accept or reject bookings, confirm schedules and weight, update the o
 Built with **Python Flask + MySQL + HTML/CSS (Jinja templates) + a little JavaScript**.
 The same website works on a phone and on a PC, because the layout is responsive.
 
-- **Live site:** https://YOUR-PROJECT.vercel.app *(replace with your Vercel link)*
-- **Course:** CSSE101 Software Engineering 1, BS Computer Science, Faith Colleges (BSCS 3A, Group 4)
+- **Live site:** https://drop-wash-go.vercel.app/
 
 ```
 Drop, Wash, Go/
