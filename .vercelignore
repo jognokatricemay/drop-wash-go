@@ -1,0 +1,20 @@
+# Files that are not needed to run the website (keeps the Vercel upload small).
+# Only matters if you deploy with the Vercel CLI; a GitHub deploy only sees what is in the repo.
+.venv/
+.claude/
+.vscode/
+.env
+*.pem
+tests/
+web/
+figma-export/
+logo/
+*.docx
+*.pdf
+*.mp4
+*.mkv
+*.fig
+drop-wash-go-landing-page.txt
+dropwashgo-landingpage.png
+CSSE*
+render.yaml
