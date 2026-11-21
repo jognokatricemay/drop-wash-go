@@ -23,8 +23,7 @@ Drop, Wash, Go/
 │   ├── staff.py           dashboard, requests, orders, weight, status, paid, notifications, shop info
 │   ├── templates/         base.html (sidebar + bottom nav), _macros.html, auth/, customer/, staff/
 │   └── static/            css/style.css, css/landing.css, js/app.js
-├── api/index.py           entry point that Vercel runs (it just loads the Flask app)
-├── vercel.json            sends every request to api/index.py
+├── index.py               entry point that Vercel runs (it just loads the Flask app)
 ├── tests/smoke_test.py    opens every page and runs the whole booking flow (183 checks)
 ├── web/                   the first static HTML/CSS pages made from the Figma design (reference only)
 ├── run.py                 starts the app locally
@@ -107,9 +106,9 @@ The website runs on **Vercel** and the database on **Aiven**. Vercel only hosts 
 4. The tables and sample data are created by running `init-db` once from your laptop (see "Reset the live data" below).
 
 ### B. Website on Vercel
-1. Push the latest code to GitHub. It must include `api/index.py` and `vercel.json`.
+1. Push the latest code to GitHub. It must include `index.py` (it exposes the Flask `app` that Vercel runs).
 2. Go to **vercel.com** → sign up with GitHub → **Add New… → Project** → import the `drop-wash-go` repo.
-3. **Framework Preset:** `Other`. Leave the build and output settings empty.
+3. **Framework Preset:** `Flask`. Leave the build and output settings empty.
 4. Open **Environment Variables** and add these (copy the database values from Aiven). Tick **Production** and **Preview**.
 
 | Key | Value |
