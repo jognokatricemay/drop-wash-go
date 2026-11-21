@@ -95,54 +95,61 @@ Run this before every pull request. It **resets the database to the sample data*
 - **Roles.** `@login_required("customer")` / `@login_required("staff")` protect every page. Staff only see their own shop's bookings.
 - **Time zone.** The server runs in UTC, so all booking date and time checks use Philippine time (UTC+8).
 
-## 3. Deploy for free: Vercel (website) + Aiven (MySQL)
+## 3. Deploy for free: Vercel (website) + TiDB Cloud (MySQL)
 
-The website runs on **Vercel** and the database on **Aiven**. Vercel only hosts the website, so the MySQL database stays on Aiven. Both have free plans, and you can sign up with GitHub.
+The website runs on **Vercel** and the database on **TiDB Cloud Starter**, which is MySQL-compatible, so the app uses PyMySQL as usual. Vercel only hosts the website, so the database lives on TiDB. Both have free plans, and you can sign up with GitHub.
 
-### A. Database on Aiven (skip this if you already have one)
-1. Go to **aiven.io** → sign up → **Create service** → **MySQL** → choose the **Free** plan → **Create**.
-2. Wait until the service says **Running**. In **Overview → Connection information**, note the **Host**, **Port**, **User** (`avnadmin`) and **Password**.
-3. Download the **CA certificate** (`ca.pem`) from the same page. Keep it; you'll paste its text into Vercel.
-4. The tables and sample data are created by running `init-db` once from your laptop (see "Reset the live data" below).
+### A. Database on TiDB Cloud
+1. Go to **tidbcloud.com** → sign up → **Create** a **Starter** instance (the MySQL one, not PostgreSQL). Pick a name and a region, and remember the region (you will match it in Vercel).
+2. When it is **Active**, open the instance and click **Connect** (top right). Note the **Host**, **Port** (usually `4000`), and **User** (it has a prefix, like `abc123.root`), then **Generate Password** and copy it right away.
+3. Make sure the public endpoint allows connections from anywhere (`0.0.0.0/0`), because Vercel's IP addresses change.
+4. Create the tables and sample data once, from your laptop (see "Create or reset the data" below).
 
 ### B. Website on Vercel
 1. Push the latest code to GitHub. It must include `index.py` (it exposes the Flask `app` that Vercel runs).
 2. Go to **vercel.com** → sign up with GitHub → **Add New… → Project** → import the `drop-wash-go` repo.
 3. **Framework Preset:** `Flask`. Leave the build and output settings empty.
-4. Open **Environment Variables** and add these (copy the database values from Aiven). Tick **Production** and **Preview**.
+4. Open **Environment Variables** and add these (copy the database values from TiDB). Tick **Production** and **Preview**.
 
 | Key | Value |
 |---|---|
 | `SECRET_KEY` | any long random text (for example 40 random characters) |
-| `DB_HOST` | Aiven host, e.g. `mysql-xxxx.aivencloud.com` |
-| `DB_PORT` | Aiven port, e.g. `12345` (not 3306) |
-| `DB_USER` | `avnadmin` |
-| `DB_PASSWORD` | Aiven password |
-| `DB_NAME` | `dropwashgo` |
+| `DB_HOST` | TiDB host, e.g. `gateway01.xxxx.prod.aws.tidbcloud.com` |
+| `DB_PORT` | `4000` |
+| `DB_USER` | TiDB user **with its prefix**, e.g. `abc123.root` |
+| `DB_PASSWORD` | TiDB password |
+| `DB_NAME` | `test` (TiDB's default database) or `dropwashgo`, but use the same name everywhere |
 | `DB_SSL` | `1` |
-| `DB_SSL_CA` | open `ca.pem` in Notepad and paste **all** of its text |
+| `DB_SSL_CA` | leave empty (encrypted, certificate not checked), or paste the text of the CA certificate from TiDB's Connect dialog |
 
    Do **not** add `AUTO_INIT_DB`. The database already has its tables, and a serverless site should not try to create them.
 
 5. Click **Deploy**. When it finishes, Vercel shows your link (`https://<project>.vercel.app`). Put that link at the top of this README.
+6. In Vercel → **Settings → Functions → Function Region**, choose the region that matches your TiDB region (for example Singapore `sin1` for AWS `ap-southeast-1`), then **Redeploy**. Otherwise every query crosses an ocean and pages are slow.
 
 ### Updating the live site
-Every push or merge to `main` on GitHub **deploys automatically**. Watch it in Vercel → **Deployments**. Every pull request also gets its own preview link.
+Every push or merge to `main` on GitHub **deploys automatically**. Watch it in Vercel → **Deployments**. Every pull request also gets its own preview link. After you change an environment variable, **Redeploy**, because an old deployment does not see the new value.
 
-### Good to know
-- **Vercel runs the app as a serverless function.** There is no "sleeping for a minute" like on Render, but the first visit after a quiet period can be a bit slower (cold start). Open the site a few minutes before the presentation.
-- **Region.** In Vercel → **Settings → Functions → Function Region**, pick the region closest to your Aiven database. A far region makes every page slower.
-- **Connection limit.** Each running copy of the site opens its own connection to MySQL. A free Aiven plan allows only a small number, which is fine for a demo but not for many visitors at once.
-- **The free Aiven database may be paused** if it is not used for a long time. If the site shows an error, check that the Aiven service says **Running**.
-- **Reset the live data to the sample data.** Run `init-db` from your laptop with the Aiven values set for that terminal only (PowerShell):
+### Create or reset the data
+`init-db` creates the tables and loads the sample data, and it **deletes everything first**. Run it from your laptop with the TiDB values set for that terminal only (PowerShell, use single quotes around the password):
 
 ```powershell
-$env:DB_HOST="mysql-xxxx.aivencloud.com"; $env:DB_PORT="12345"; $env:DB_USER="avnadmin"; $env:DB_PASSWORD="..."; $env:DB_SSL="1"; $env:DB_SSL_CA="C:\Users\you\Downloads\ca.pem"; flask --app app init-db
+$env:DB_HOST='gateway01.xxxx.prod.aws.tidbcloud.com'; $env:DB_PORT='4000'; $env:DB_USER='abc123.root'; $env:DB_PASSWORD='...'; $env:DB_NAME='test'; $env:DB_SSL='1'; $env:DB_SSL_CA=''
 ```
 
-  Close that terminal afterwards, so you don't accidentally wipe the live database later.
-- **Never commit the Aiven password or `ca.pem` to GitHub.** They only go into Vercel's environment settings.
-- **`render.yaml`** is the old Render setup. Vercel does not use it, and it can be deleted once the Render service is turned off.
+```powershell
+flask --app app init-db
+```
+
+If `CREATE DATABASE` is denied, use `DB_NAME` = `test`. Close that terminal afterwards, so you don't accidentally wipe the live database later (the smoke test also resets the data).
+
+### Good to know
+- **Vercel runs the app as a serverless function.** There is no long "sleeping" like on a free web service, but the first visit after a quiet period can be a bit slower (cold start). Open the site a few minutes before the presentation.
+- **TiDB Starter scales to zero when idle**, so the first query after a quiet period can also be slower. Check [TiDB's pricing page](https://www.pingcap.com/products/tidbcloud/pricing/) for the current free limits.
+- **Connection limit.** Each running copy of the site opens its own connection to MySQL. The free plan is meant for small projects, which is fine for a demo but not for many visitors at once.
+- **The region cannot be changed after creating the instance** (as far as we could find). If you pick the wrong one, create a new instance, change the environment variables, and run `init-db` again. The data is only sample data.
+- **Never commit the TiDB password or any `.pem` certificate to GitHub.** They only go into Vercel's environment settings and your own `.env`.
+- **`render.yaml`** is the old Render setup. Vercel does not use it, and it can be deleted.
 
 ## 4. Team
 
